@@ -2,7 +2,7 @@ mod actions;
 mod utils;
 
 use clap::{load_yaml, App, ArgMatches};
-use std::error::Error;
+use std::error;
 use std::process::exit;
 
 fn main() {
@@ -17,6 +17,7 @@ fn main() {
         ("start", Some(sub_matches)) => command_start(sub_matches),
         ("edit", Some(sub_matches)) => command_edit(sub_matches),
         ("remove", Some(sub_matches)) => command_remove(sub_matches),
+        ("list", Some(sub_matches)) => command_list(sub_matches),
         _ => command_start(&matches),
     } {
         println!("An error has occured: {}", error);
@@ -24,7 +25,7 @@ fn main() {
     }
 }
 
-fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
+fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
     let tmux_command = matches
         .value_of_os("tmux_command")
         .ok_or("tmux command cannot be empty")?;
@@ -34,7 +35,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::start_project(tmux_command, project_name, attach)
 }
 
-fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
+fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
     let tmux_command = matches
         .value_of_os("tmux_command")
         .ok_or("tmux command cannot be empty")?;
@@ -46,7 +47,7 @@ fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::edit_project(tmux_command, project_name, editor)
 }
 
-fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
+fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
     let tmux_command = matches
         .value_of_os("tmux_command")
         .ok_or("tmux command cannot be empty")?;
@@ -54,4 +55,8 @@ fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let no_input = matches.is_present("no-input");
 
     actions::remove_project(tmux_command, project_name, no_input)
+}
+
+fn command_list(_: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
+    actions::list_projects()
 }

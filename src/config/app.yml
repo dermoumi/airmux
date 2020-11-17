@@ -12,6 +12,9 @@ args:
       help: name of the project
       index: 1
 subcommands:
+  - list:
+      about: List all configured projects
+      alias: ls
   - start:
       about: Start a project as a tmux session
       args:
