@@ -1,0 +1,53 @@
+name: rmux
+args:
+  - tmux_command:
+      global: true
+      help: tmux command to use
+      short: c
+      long: command
+      value_name: COMMAND
+      env: RMUX_COMMAND
+      default_value: tmux
+  - NAME:
+      help: name of the project
+      index: 1
+subcommands:
+  - start:
+      about: Start a project as a tmux session
+      args:
+        - NAME:
+            help: name of the project
+            index: 1
+        - no-attach:
+            help: don't automatically attach the session
+            short: "n"
+            long: no-attach
+  - edit:
+      about: Create or edit a project
+      alias: new
+      args:
+        - NAME:
+            help: name of the project
+            index: 1
+            required: true
+        - editor:
+            help: the editor to use
+            short: e
+            long: editor
+            required: true
+            value_name: EDITOR
+            env: EDITOR
+  - remove:
+      about: Remove a project
+      aliases:
+        - rm
+        - delete
+      args:
+        - NAME:
+            help: name of the project
+            required: true
+            index: 1
+        - no-input:
+            help: do not prompt for input
+            short: "y"
+            long: no-input

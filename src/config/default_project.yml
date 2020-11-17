@@ -1,0 +1,9 @@
+# Name of the sessions
+name: "__PROJECT__"
+
+# List of windows
+windows:
+  - shell:
+      root: ~/
+      panes:
+        - main:
