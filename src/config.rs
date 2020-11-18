@@ -10,9 +10,9 @@ const PROJECTS_SUBDIR: &'static str = "projects";
 
 #[derive(Debug, Snafu)]
 pub enum Error {
-    #[snafu(display("app_name is empty"))]
+    #[snafu(display("app_name cannot be empty"))]
     AppNameEmpty {},
-    #[snafu(display("app_author is not defined"))]
+    #[snafu(display("app_author cannot be empty"))]
     AppAuthorEmpty {},
     #[snafu(display("tmux command cannot be empty"))]
     TmuxCommandEmpty {},
@@ -47,7 +47,7 @@ impl Config {
         }
     }
 
-    pub fn check(&self) -> Result<(), Box<dyn error::Error>> {
+    pub fn check(self) -> Result<Self, Box<dyn error::Error>> {
         ensure!(!&self.app_name.is_empty(), AppNameEmpty {});
         ensure!(!&self.app_author.is_empty(), AppAuthorEmpty {});
         ensure!(!&self.tmux_command.is_empty(), TmuxCommandEmpty {});
@@ -59,7 +59,7 @@ impl Config {
             mkdirp(&config_dir)?;
         };
 
-        Ok(())
+        Ok(self)
     }
 
     pub fn get_config_dir<P: AsRef<Path>>(
