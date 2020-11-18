@@ -1,5 +1,5 @@
 # Name of the sessions
-name: "__PROJECT__"
+name: "__PROJECT_NAME__"
 
 # List of windows
 windows:

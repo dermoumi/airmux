@@ -37,7 +37,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
     config.check()?;
 
     let project_name = matches.value_of_os("NAME").ok_or("NAME cannot be empty")?;
-    let attach = !matches.is_present("no-attach");
+    let attach = !matches.is_present("no_attach");
 
     actions::start_project(&config, project_name, attach)
 }
@@ -59,7 +59,7 @@ fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
     config.check()?;
 
     let project_name = matches.value_of_os("NAME").ok_or("NAME cannot be empty")?;
-    let no_input = matches.is_present("no-input");
+    let no_input = matches.is_present("no_input");
 
     actions::remove_project(&config, project_name, no_input)
 }

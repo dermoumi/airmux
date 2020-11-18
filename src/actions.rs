@@ -15,11 +15,13 @@ pub enum Error {
     EditorEmpty {},
 }
 
-pub fn start_project(
+pub fn start_project<S: AsRef<OsStr>>(
     _: &Config,
-    project_name: &OsStr,
+    project_name: S,
     attach: bool,
 ) -> Result<(), Box<dyn error::Error>> {
+    let project_name = project_name.as_ref();
+
     println!("Start {:?} and attaching? {:?}", project_name, attach);
 
     // Parse yaml file
@@ -30,11 +32,14 @@ pub fn start_project(
     Ok(()) // nocov
 }
 
-pub fn edit_project(
+pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     config: &Config,
-    project_name: &OsStr,
-    editor: &OsStr,
+    project_name: S1,
+    editor: S2,
 ) -> Result<(), Box<dyn error::Error>> {
+    let project_name = project_name.as_ref();
+    let editor = editor.as_ref();
+
     // Make sure editor is not empty
     ensure!(!editor.is_empty(), EditorEmpty {});
 
@@ -48,7 +53,7 @@ pub fn edit_project(
     project_path.set_extension("yml");
     if !project_path.exists() {
         let default_project_yml = include_str!("yaml/default_project.yml")
-            .replace("__PROJECT__", &project_name.to_string_lossy());
+            .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
 
         let mut file = fs::File::create(&project_path)?;
         file.write_all(default_project_yml.as_bytes())?;
@@ -64,11 +69,13 @@ pub fn edit_project(
     Ok(())
 }
 
-pub fn remove_project(
+pub fn remove_project<S: AsRef<OsStr>>(
     _: &Config,
-    project_name: &OsStr,
+    project_name: S,
     no_input: bool,
 ) -> Result<(), Box<dyn error::Error>> {
+    let project_name = project_name.as_ref();
+
     println!("Remove {:?}. No input? {:?}", project_name, no_input);
 
     // Get project subdirectory
@@ -112,11 +119,9 @@ mod tests {
     fn edit_project_fails_when_editor_is_empty() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
         let test_config = make_config(None, None, None, Some(temp_dir));
-        let project_name = OsString::from("__test_project_edit0__");
-        let editor = OsString::new();
 
         assert!(matches!(
-            edit_project(&test_config, &project_name, &editor)
+            edit_project(&test_config, "project", "")
                 .err()
                 .unwrap()
                 .downcast_ref::<Error>()
@@ -129,17 +134,16 @@ mod tests {
     fn edit_project_succeeds_when_project_file_does_not_exist() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
         let test_config = make_config(None, None, None, Some(temp_dir));
-        let project_name = OsString::from("__test_project_edit1__");
-        let editor = OsString::from("test");
+        let project_name = "project";
 
         // Make sure the file does not exist
         let project_path = test_config
-            .get_projects_dir(&project_name)
+            .get_projects_dir(project_name)
             .unwrap()
             .with_extension("yml");
 
         // Run edit_project
-        let result = edit_project(&test_config, &project_name, &editor);
+        let result = edit_project(&test_config, project_name, "test");
 
         assert!(project_path.is_file());
         assert!(result.is_ok());
@@ -149,12 +153,11 @@ mod tests {
     fn edit_project_succeeds_when_project_file_exists() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
         let test_config = make_config(None, None, None, Some(temp_dir));
-        let project_name = OsString::from("__test_project_edit2__");
-        let editor = OsString::from("test");
+        let project_name = "project";
 
         // Make sure the file exists
         let projects_dir = test_config.get_projects_dir("").unwrap();
-        let project_path = projects_dir.join(&project_name).with_extension("yml");
+        let project_path = projects_dir.join(project_name).with_extension("yml");
 
         mkdirp(projects_dir).unwrap();
 
@@ -165,7 +168,7 @@ mod tests {
         assert!(project_path.is_file());
 
         // Run edit_project
-        let result = edit_project(&test_config, &project_name, &editor);
+        let result = edit_project(&test_config, project_name, "test");
 
         assert!(project_path.is_file());
         assert!(result.is_ok());
