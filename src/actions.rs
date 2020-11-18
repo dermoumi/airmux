@@ -1,4 +1,6 @@
+use crate::config;
 use crate::utils;
+use config::Config;
 use mkdirp::mkdirp;
 use snafu::{ensure, Snafu};
 use std::error;
@@ -14,7 +16,7 @@ pub enum Error {
 }
 
 pub fn start_project(
-    _: &OsStr,
+    _: &Config,
     project_name: &OsStr,
     attach: bool,
 ) -> Result<(), Box<dyn error::Error>> {
@@ -29,7 +31,7 @@ pub fn start_project(
 }
 
 pub fn edit_project(
-    _: &OsStr,
+    config: &Config,
     project_name: &OsStr,
     editor: &OsStr,
 ) -> Result<(), Box<dyn error::Error>> {
@@ -37,16 +39,15 @@ pub fn edit_project(
     ensure!(!editor.is_empty(), EditorEmpty {});
 
     // Make sure the project's parent directory exists
-    let data_dir = utils::get_data_dir(utils::APP_NAME, utils::APP_AUTHOR)?;
     let namespace = utils::get_project_namespace(project_name)?;
-    let sub_dir_path = data_dir.join(namespace);
-    mkdirp(sub_dir_path)?;
+    let data_dir = config.get_projects_dir(&namespace)?;
+    mkdirp(&data_dir)?;
 
     // Make sure the project's yml file exists
     let mut project_path = data_dir.join(project_name);
     project_path.set_extension("yml");
     if !project_path.exists() {
-        let default_project_yml = include_str!("config/default_project.yml")
+        let default_project_yml = include_str!("yaml/default_project.yml")
             .replace("__PROJECT__", &project_name.to_string_lossy());
 
         let mut file = fs::File::create(&project_path)?;
@@ -64,7 +65,7 @@ pub fn edit_project(
 }
 
 pub fn remove_project(
-    _: &OsStr,
+    _: &Config,
     project_name: &OsStr,
     no_input: bool,
 ) -> Result<(), Box<dyn error::Error>> {
@@ -78,23 +79,44 @@ pub fn remove_project(
     Ok(())
 }
 
-pub fn list_projects() -> Result<(), Box<dyn error::Error>> {
+pub fn list_projects(_: &Config) -> Result<(), Box<dyn error::Error>> {
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::crate_name;
     use std::ffi::OsString;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
+
+    const APP_NAME: &'static str = crate_name!();
+    const APP_AUTHOR: &'static str = "dermoumi";
+
+    fn make_config(
+        app_name: Option<&'static str>,
+        app_author: Option<&'static str>,
+        tmux_command: Option<OsString>,
+        config_dir: Option<PathBuf>,
+    ) -> Config {
+        Config {
+            app_name: app_name.unwrap_or(APP_NAME),
+            app_author: app_author.unwrap_or(APP_AUTHOR),
+            tmux_command: tmux_command.unwrap_or(OsString::from("tmux")),
+            config_dir,
+        }
+    }
 
     #[test]
     fn edit_project_fails_when_editor_is_empty() {
-        let tmux_command = OsString::from("tmux");
-        let project_name = OsString::from("__rmux_test_project_edit0__");
+        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project_name = OsString::from("__test_project_edit0__");
         let editor = OsString::new();
 
         assert!(matches!(
-            edit_project(&tmux_command, &project_name, &editor)
+            edit_project(&test_config, &project_name, &editor)
                 .err()
                 .unwrap()
                 .downcast_ref::<Error>()
@@ -105,62 +127,47 @@ mod tests {
 
     #[test]
     fn edit_project_succeeds_when_project_file_does_not_exist() {
-        let tmux_command = OsString::from("tmux");
-        let project_name = OsString::from("__rmux_test_project_edit1__");
+        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project_name = OsString::from("__test_project_edit1__");
         let editor = OsString::from("test");
 
         // Make sure the file does not exist
-        let mut project_path = utils::get_data_dir(utils::APP_NAME, utils::APP_AUTHOR)
+        let project_path = test_config
+            .get_projects_dir(&project_name)
             .unwrap()
-            .join(&project_name);
-        project_path.set_extension("yml");
-        let _ = fs::remove_file(&project_path);
-        let _ = fs::remove_dir_all(&project_path);
-
-        assert!(!project_path.exists());
+            .with_extension("yml");
 
         // Run edit_project
-        let result = edit_project(&tmux_command, &project_name, &editor);
+        let result = edit_project(&test_config, &project_name, &editor);
 
-        // Save file state and clean up
-        let file_exists = project_path.is_file();
-        let _ = fs::remove_file(project_path);
-
-        // Assert
-        assert!(file_exists);
+        assert!(project_path.is_file());
         assert!(result.is_ok());
     }
 
     #[test]
     fn edit_project_succeeds_when_project_file_exists() {
-        let tmux_command = OsString::from("tmux");
-        let project_name = OsString::from("__rmux_test_project_edit2__");
+        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project_name = OsString::from("__test_project_edit2__");
         let editor = OsString::from("test");
 
         // Make sure the file exists
-        let data_dir = utils::get_data_dir(utils::APP_NAME, utils::APP_AUTHOR).unwrap();
-        let mut project_path = data_dir.join(&project_name);
-        project_path.set_extension("yml");
+        let projects_dir = test_config.get_projects_dir("").unwrap();
+        let project_path = projects_dir.join(&project_name).with_extension("yml");
 
-        mkdirp(data_dir).unwrap();
+        mkdirp(projects_dir).unwrap();
 
-        let default_project_yml = include_str!("config/default_project.yml")
-            .replace("__PROJECT__", &project_name.to_string_lossy());
         let mut file = fs::File::create(&project_path).unwrap();
-        file.write_all(default_project_yml.as_bytes()).unwrap();
+        file.write_all(":D".as_bytes()).unwrap();
         file.sync_all().unwrap();
 
         assert!(project_path.is_file());
 
         // Run edit_project
-        let result = edit_project(&tmux_command, &project_name, &editor);
+        let result = edit_project(&test_config, &project_name, &editor);
 
-        // Save file state and clean up
-        let file_exists = project_path.is_file();
-        let _ = fs::remove_file(project_path);
-
-        // Assert
-        assert!(file_exists);
+        assert!(project_path.is_file());
         assert!(result.is_ok());
     }
 }

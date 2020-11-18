@@ -3,11 +3,18 @@ args:
   - tmux_command:
       global: true
       help: tmux command to use
-      short: c
+      short: t
       long: command
       value_name: COMMAND
       env: RMUX_COMMAND
       default_value: tmux
+  - config_dir:
+      global: true
+      help: configuration directory to use
+      short: c
+      long: config-dir
+      value_name: DIR
+      env: RMUX_CONFIG
   - NAME:
       help: name of the project
       index: 1
@@ -21,7 +28,7 @@ subcommands:
         - NAME:
             help: name of the project
             index: 1
-        - no-attach:
+        - no_attach:
             help: don't automatically attach the session
             short: "n"
             long: no-attach
@@ -50,7 +57,7 @@ subcommands:
             help: name of the project
             required: true
             index: 1
-        - no-input:
+        - no_input:
             help: do not prompt for input
             short: "y"
             long: no-input

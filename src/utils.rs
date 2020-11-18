@@ -1,16 +1,9 @@
-use app_dirs::{get_app_root, AppDataType, AppInfo};
-use clap::{crate_description, crate_name, crate_version};
 use shell_words::split;
 use snafu::{ensure, Snafu};
 use std::error;
 use std::ffi::{OsStr, OsString};
 use std::path;
 use std::path::PathBuf;
-
-pub const APP_NAME: &'static str = crate_name!();
-pub const APP_AUTHOR: &'static str = "dermoumi";
-pub const APP_VERSION: &'static str = crate_version!();
-pub const APP_DESCRIPTION: &'static str = crate_description!();
 
 #[derive(Debug, Snafu)]
 pub enum Error {
@@ -20,20 +13,6 @@ pub enum Error {
     ProjectNameAbsolutePath {},
     #[snafu(display("Command cannot be empty"))]
     EmptyCommand {},
-}
-
-pub fn get_data_dir(
-    app_name: &'static str,
-    app_author: &'static str,
-) -> Result<PathBuf, Box<dyn error::Error>> {
-    get_app_root(
-        AppDataType::UserConfig,
-        &AppInfo {
-            name: &app_name,
-            author: &app_author,
-        },
-    )
-    .map_err(|x| x.into())
 }
 
 pub fn get_project_namespace(project_name: &OsStr) -> Result<PathBuf, Box<dyn error::Error>> {
@@ -67,24 +46,6 @@ pub fn parse_command(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use app_dirs::AppDirsError;
-
-    #[test]
-    fn get_data_dir_works() {
-        assert!(get_data_dir(APP_NAME, APP_AUTHOR).is_ok());
-    }
-
-    #[test]
-    fn get_data_dir_wraps_errors_correctly() {
-        assert!(matches!(
-            get_data_dir("", "")
-                .err()
-                .unwrap()
-                .downcast_ref::<AppDirsError>()
-                .unwrap(),
-            AppDirsError::InvalidAppInfo
-        ));
-    }
 
     #[test]
     fn parses_empty_namespace() {
