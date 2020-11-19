@@ -153,7 +153,8 @@ mod tests {
 
     #[test]
     fn check_fails_when_app_name_is_empty() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
         let test_config = make_config(Some(""), None, None, Some(temp_dir));
 
         let result = test_config.check();
@@ -166,7 +167,8 @@ mod tests {
 
     #[test]
     fn check_fails_when_author_name_is_empty() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
         let test_config = make_config(None, Some(""), None, Some(temp_dir));
 
         let result = test_config.check();
@@ -179,7 +181,8 @@ mod tests {
 
     #[test]
     fn check_fails_when_tmux_command_is_empty() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
         let test_config = make_config(None, None, Some(OsString::new()), Some(temp_dir));
 
         let result = test_config.check();
@@ -212,7 +215,8 @@ mod tests {
 
     #[test]
     fn check_attemps_to_make_the_directory() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().join("config");
 
         let test_config = make_config(None, None, None, Some(temp_dir.clone()));
         assert!(!temp_dir.exists());
@@ -240,7 +244,8 @@ mod tests {
 
     #[test]
     fn get_config_dir_returns_correct_path() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
         let test_config = make_config(None, None, None, Some(temp_dir.clone()));
 
         let result = test_config.get_config_dir("").unwrap();
@@ -250,7 +255,8 @@ mod tests {
     #[test]
     fn get_config_dir_returns_correct_subdir_path() {
         let subdir = "my_subdir";
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
 
         let expected_path = temp_dir.join(subdir);
         let test_config = make_config(None, None, None, Some(temp_dir));
@@ -261,7 +267,8 @@ mod tests {
 
     #[test]
     fn get_projects_dir_returns_correct_path() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
 
         let expected_path = temp_dir.join(PROJECTS_SUBDIR);
         let test_config = make_config(None, None, None, Some(temp_dir));
@@ -272,7 +279,8 @@ mod tests {
 
     #[test]
     fn get_projects_dir_returns_correct_subdir_path() {
-        let temp_dir = tempdir().unwrap().path().to_path_buf();
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
 
         let subdir = "my_subdir";
         let expected_path = temp_dir.join(PROJECTS_SUBDIR).join(subdir);
