@@ -2,6 +2,7 @@ use crate::config;
 use crate::utils;
 
 use config::Config;
+use dialoguer::Confirm;
 use mkdirp::mkdirp;
 use snafu::{ensure, Snafu};
 
@@ -16,6 +17,8 @@ use std::process::Command;
 pub enum Error {
     #[snafu(display("editor cannot be empty"))]
     EditorEmpty {},
+    #[snafu(display("project {:?} does not exist", project_name))]
+    ProjectDoesNotExist { project_name: OsString },
 }
 
 pub fn start_project<S: AsRef<OsStr>>(
@@ -54,7 +57,7 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     // Make sure the project's yml file exists
     let project_path = data_dir.join(project_name).with_extension("yml");
     if !project_path.exists() {
-        create_project(project_name, &project_path)?;
+        edit::create_project(project_name, &project_path)?;
     }
 
     // Open it with editor
@@ -67,18 +70,38 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
 }
 
 pub fn remove_project<S: AsRef<OsStr>>(
-    _: &Config,
+    config: &Config,
     project_name: S,
     no_input: bool,
 ) -> Result<(), Box<dyn error::Error>> {
     let project_name = project_name.as_ref();
 
-    println!("Remove {:?}. No input? {:?}", project_name, no_input);
+    let projects_dir = config.get_projects_dir("")?;
 
-    // Get project subdirectory
-    // If project exists: Remove project file
-    // Attempt to remove subdirectory, fail silently
-    // If project does not exist; fail
+    let project_path = projects_dir.join(project_name).with_extension("yml");
+    ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
+
+    if !no_input
+        && !Confirm::new()
+            .with_prompt(format!(
+                "Are you sure you want to remove {:?}?",
+                project_name
+            ))
+            .default(false)
+            .show_default(true)
+            .interact()?
+    {
+        return Ok(());
+    }
+
+    fs::remove_file(&project_path)?;
+    for parent in project_path.ancestors() {
+        if parent == projects_dir {
+            break;
+        }
+
+        let _ = fs::remove_dir(parent);
+    }
 
     Ok(())
 }
@@ -88,7 +111,7 @@ pub fn list_projects(config: &Config) -> Result<(), Box<dyn error::Error>> {
 
     println!(
         "{}",
-        get_project_list(data_dir)?
+        list::get_projects(data_dir)?
             .into_iter()
             .map(|entry| entry.to_string_lossy().into())
             .collect::<Vec<String>>()
@@ -98,57 +121,65 @@ pub fn list_projects(config: &Config) -> Result<(), Box<dyn error::Error>> {
     Ok(())
 }
 
-fn create_project<S: AsRef<OsStr>, P: AsRef<Path>>(
-    project_name: S,
-    project_path: P,
-) -> Result<(), Box<dyn error::Error>> {
-    let project_name = project_name.as_ref();
-    let project_path = project_path.as_ref();
+mod edit {
+    use super::*;
 
-    let default_project_yml = include_str!("yaml/default_project.yml")
-        .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
+    pub fn create_project<S: AsRef<OsStr>, P: AsRef<Path>>(
+        project_name: S,
+        project_path: P,
+    ) -> Result<(), Box<dyn error::Error>> {
+        let project_name = project_name.as_ref();
+        let project_path = project_path.as_ref();
 
-    let mut file = fs::File::create(&project_path)?;
-    file.write_all(default_project_yml.as_bytes())?;
-    file.sync_all()?;
+        let default_project_yml = include_str!("yaml/default_project.yml")
+            .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
 
-    Ok(())
+        let mut file = fs::File::create(&project_path)?;
+        file.write_all(default_project_yml.as_bytes())?;
+        file.sync_all()?;
+
+        Ok(())
+    }
 }
 
-fn get_project_list<P: AsRef<Path>>(path: P) -> Result<Vec<OsString>, Box<dyn error::Error>> {
-    let path = path.as_ref();
-    let mut projects = vec![];
+mod list {
+    use super::*;
 
-    for entry in path.read_dir()? {
-        let entry = entry?;
-        let entry_path = entry.path();
+    pub fn get_projects<P: AsRef<Path>>(path: P) -> Result<Vec<OsString>, Box<dyn error::Error>> {
+        let path = path.as_ref();
+        let mut projects = vec![];
 
-        if entry_path.is_file() {
-            let file_path = entry_path.strip_prefix(path)?;
-            projects.push(OsString::from(file_path.with_extension("")));
-        } else if entry_path.is_dir() {
-            let subdir = if entry.file_type()?.is_symlink() {
-                let subdir = entry_path.read_link()?;
+        for entry in path.read_dir()? {
+            let entry = entry?;
+            let entry_path = entry.path();
 
-                if entry_path.starts_with(&subdir) {
-                    continue;
-                }
+            if entry_path.is_file() {
+                let file_path = entry_path.strip_prefix(path)?;
+                projects.push(OsString::from(file_path.with_extension("")));
+            } else if entry_path.is_dir() {
+                let subdir = if entry.file_type()?.is_symlink() {
+                    let subdir = entry_path.read_link()?;
 
-                subdir
-            } else {
-                entry_path.clone()
-            };
+                    if entry_path.starts_with(&subdir) {
+                        continue;
+                    }
 
-            let file_path = entry_path.strip_prefix(path)?;
-            let mut subdir_projects = get_project_list(&subdir)?
-                .into_iter()
-                .map(|entry| OsString::from(file_path.join(entry)))
-                .collect();
-            projects.append(&mut subdir_projects);
+                    subdir
+                } else {
+                    entry_path.clone()
+                };
+
+                let file_path = entry_path.strip_prefix(path)?;
+                let mut subdir_projects = list::get_projects(&subdir)?
+                    .into_iter()
+                    .map(|entry| OsString::from(file_path.join(entry)))
+                    .collect();
+                projects.append(&mut subdir_projects);
+            }
         }
-    }
 
-    Ok(projects)
+        Ok(projects)
+    }
 }
 
 #[cfg(test)]
@@ -220,11 +251,8 @@ mod tests {
         // Make sure the file exists
         let projects_dir = test_config.get_projects_dir("").unwrap();
         let project_path = projects_dir.join(project_name).with_extension("yml");
-
         mkdirp(projects_dir).unwrap();
-
-        create_project(project_name, &project_path).unwrap();
-
+        edit::create_project(project_name, &project_path).unwrap();
         assert!(project_path.is_file());
 
         // Run edit_project
@@ -254,6 +282,94 @@ mod tests {
     }
 
     #[test]
+    fn remove_project_removes_existing_project() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project_name = "project";
+
+        // Make sure the file exists
+        let projects_dir = test_config.get_projects_dir("").unwrap();
+        let project_path = projects_dir.join(project_name).with_extension("yml");
+        mkdirp(projects_dir).unwrap();
+        edit::create_project(project_name, &project_path).unwrap();
+        assert!(project_path.is_file());
+
+        let result = remove_project(&test_config, project_name, true);
+        assert!(result.is_ok());
+        assert!(!project_path.exists());
+    }
+
+    #[test]
+    fn remove_project_removes_parent_subdirectories_if_empty() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project_name = "subdir1/subdir2/project";
+
+        // Make sure the project's parent directory exists
+        let namespace = utils::get_project_namespace(project_name).unwrap();
+        let data_dir = test_config.get_projects_dir("").unwrap();
+        mkdirp(data_dir.join(&namespace)).unwrap();
+
+        // Make sure the file exists
+        let projects_dir = test_config.get_projects_dir("").unwrap();
+        let project_path = projects_dir.join(project_name).with_extension("yml");
+        edit::create_project(project_name, &project_path).unwrap();
+        assert!(project_path.is_file());
+
+        let result = remove_project(&test_config, project_name, true);
+        assert!(result.is_ok());
+        assert!(!project_path.exists());
+        assert!(!project_path.parent().unwrap().exists());
+        assert!(!project_path.parent().unwrap().parent().unwrap().exists());
+    }
+
+    #[test]
+    fn remove_project_does_not_remove_parent_subdirs_if_not_empty() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project1_name = "subdir1/subdir2/project1";
+        let project2_name = "subdir1/project2";
+
+        // Make sure the project's parent directory exists
+        let namespace = utils::get_project_namespace(project1_name).unwrap();
+        let data_dir = test_config.get_projects_dir("").unwrap();
+        mkdirp(data_dir.join(&namespace)).unwrap();
+
+        // Make sure the file exists
+        let projects_dir = test_config.get_projects_dir("").unwrap();
+        let project1_path = projects_dir.join(project1_name).with_extension("yml");
+        edit::create_project(project1_name, &project1_path).unwrap();
+        assert!(project1_path.is_file());
+        let project2_path = projects_dir.join(project2_name).with_extension("yml");
+        edit::create_project(project2_name, &project2_path).unwrap();
+        assert!(project2_path.is_file());
+
+        let result = remove_project(&test_config, project1_name, true);
+        assert!(result.is_ok());
+        assert!(!project1_path.exists());
+        assert!(!project1_path.parent().unwrap().exists());
+        assert!(project1_path.parent().unwrap().parent().unwrap().exists());
+    }
+
+    #[test]
+    fn remove_project_fails_if_project_does_not_exist() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project1_name = "project";
+
+        let result = remove_project(&test_config, project1_name, true);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err().unwrap().downcast_ref::<Error>().unwrap(),
+            Error::ProjectDoesNotExist { project_name } if project_name == project1_name
+        ));
+    }
+
+    #[test]
     fn list_project_does_not_fail() {
         let temp_dir = tempdir().unwrap();
         let temp_dir = temp_dir.path().to_path_buf();
@@ -271,12 +387,12 @@ mod tests {
         for n in 0..5 {
             let project_name = OsString::from(format!("project{}", n));
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         expected_project_list.sort();
 
-        let mut project_list = get_project_list(&temp_dir).unwrap();
+        let mut project_list = list::get_projects(&temp_dir).unwrap();
         project_list.sort();
 
         assert_eq!(project_list, expected_project_list);
@@ -291,26 +407,26 @@ mod tests {
         for n in 0..2 {
             let project_name = OsString::from(format!("project{}", n));
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         for n in 2..4 {
             let project_name = OsString::from(format!("subdir1/project{}", n));
             mkdirp(temp_dir.join("subdir1")).unwrap();
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         for n in 4..6 {
             let project_name = OsString::from(format!("subdir2/project{}", n));
             mkdirp(temp_dir.join("subdir2")).unwrap();
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         expected_project_list.sort();
 
-        let mut project_list = get_project_list(&temp_dir).unwrap();
+        let mut project_list = list::get_projects(&temp_dir).unwrap();
         project_list.sort();
 
         assert_eq!(project_list, expected_project_list);
@@ -325,14 +441,14 @@ mod tests {
         for n in 0..2 {
             let project_name = OsString::from(format!("project{}", n));
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         for n in 2..4 {
             let project_name = OsString::from(format!("subdir1/project{}", n));
             mkdirp(temp_dir.join("subdir1")).unwrap();
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         for n in 2..4 {
@@ -348,7 +464,7 @@ mod tests {
         os::unix::fs::symlink(temp_dir.join("subdir1"), temp_dir.join("subdir2")).unwrap();
         assert!(temp_dir.join("subdir2").is_dir());
 
-        let mut project_list = get_project_list(&temp_dir).unwrap();
+        let mut project_list = list::get_projects(&temp_dir).unwrap();
         project_list.sort();
 
         assert_eq!(project_list, expected_project_list);
@@ -363,14 +479,14 @@ mod tests {
         for n in 0..2 {
             let project_name = OsString::from(format!("project{}", n));
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         for n in 2..4 {
             let project_name = OsString::from(format!("subdir1/project{}", n));
             mkdirp(temp_dir.join("subdir1")).unwrap();
 
-            create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+            edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
             expected_project_list.push(project_name);
         }
         expected_project_list.sort();
@@ -381,7 +497,7 @@ mod tests {
         os::unix::fs::symlink(&temp_dir, temp_dir.join("subdir2")).unwrap();
         assert!(temp_dir.join("subdir2").is_dir());
 
-        let mut project_list = get_project_list(&temp_dir).unwrap();
+        let mut project_list = list::get_projects(&temp_dir).unwrap();
         project_list.sort();
 
         assert_eq!(project_list, expected_project_list);

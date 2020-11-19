@@ -15,6 +15,7 @@ mkdirp = "1.0.0"
 shell-words = "1.0.0"
 snafu = "0.6.9"
 main_error = "0.1.1"
+dialoguer = "0.7.1"
 
 [dev-dependencies]
 tempfile = "3.1.0"

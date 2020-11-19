@@ -15,7 +15,11 @@ pub enum Error {
     EmptyCommand {},
 }
 
-pub fn get_project_namespace(project_name: &OsStr) -> Result<PathBuf, Box<dyn error::Error>> {
+pub fn get_project_namespace<S: AsRef<OsStr>>(
+    project_name: S,
+) -> Result<PathBuf, Box<dyn error::Error>> {
+    let project_name = project_name.as_ref();
+
     let has_trailing_slash = project_name
         .to_string_lossy()
         .ends_with(path::MAIN_SEPARATOR);
@@ -38,8 +42,8 @@ pub fn parse_command(
 
     let mut command_parts = split(&command.to_string_lossy())?
         .into_iter()
-        .map(|x| OsString::from(x))
-        .chain(args.into_iter().map(|x| x.to_os_string()));
+        .map(|x| x.into())
+        .chain(args.into_iter().map(|x| x.into()));
 
     let new_command = command_parts.next().unwrap();
     let new_args: Vec<OsString> = command_parts.collect();
