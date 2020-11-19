@@ -1,28 +1,19 @@
-mod actions;
-mod config;
-mod utils;
+extern crate rmux;
+use rmux::config::Config;
+use rmux::*;
 
 use clap::{crate_description, crate_name, crate_version, load_yaml, App, ArgMatches};
-use config::Config;
 use main_error::MainError;
-use snafu::Snafu;
-use std::error;
+
+use std::error::Error;
 
 pub const APP_NAME: &'static str = crate_name!();
 pub const APP_AUTHOR: &'static str = "dermoumi";
 pub const APP_VERSION: &'static str = crate_version!();
 pub const APP_DESCRIPTION: &'static str = crate_description!();
 
-#[derive(Debug, Snafu)]
-pub enum Error {
-    #[snafu(display("project name cannot be empty"))]
-    ProjectNameEmpty {},
-    #[snafu(display("editor cannot be empty"))]
-    EditorEmpty {},
-}
-
 fn main() -> Result<(), MainError> {
-    let arg_config = load_yaml!("yaml/app.yml");
+    let arg_config = load_yaml!("app.yml");
     let matches = App::from_yaml(&arg_config)
         .name(APP_NAME)
         .version(APP_VERSION)
@@ -39,40 +30,34 @@ fn main() -> Result<(), MainError> {
     .map_err(|x| x.into())
 }
 
-fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
+fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches
-        .value_of_os("NAME")
-        .ok_or(Error::ProjectNameEmpty {})?;
+    let project_name = matches.value_of_os("NAME").ok_or("")?;
     let attach = !matches.is_present("no_attach");
 
     actions::start_project(&config, project_name, attach)
 }
 
-fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
+fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches
-        .value_of_os("NAME")
-        .ok_or(Error::ProjectNameEmpty {})?;
-    let editor = matches.value_of_os("editor").ok_or(Error::EditorEmpty {})?;
+    let project_name = matches.value_of_os("NAME").ok_or("")?;
+    let editor = matches.value_of_os("editor").ok_or("")?;
 
     actions::edit_project(&config, project_name, editor)
 }
 
-fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
+fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches
-        .value_of_os("NAME")
-        .ok_or(Error::ProjectNameEmpty {})?;
+    let project_name = matches.value_of_os("NAME").ok_or("")?;
     let no_input = matches.is_present("no_input");
 
     actions::remove_project(&config, project_name, no_input)
 }
 
-fn command_list(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {
+fn command_list(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     actions::list_projects(&config)
