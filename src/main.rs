@@ -4,6 +4,7 @@ mod utils;
 
 use clap::{crate_description, crate_name, crate_version, load_yaml, App, ArgMatches};
 use config::Config;
+use main_error::MainError;
 use snafu::Snafu;
 use std::error;
 
@@ -20,7 +21,7 @@ pub enum Error {
     EditorEmpty {},
 }
 
-fn main() -> Result<(), Box<dyn error::Error>> {
+fn main() -> Result<(), MainError> {
     let arg_config = load_yaml!("yaml/app.yml");
     let matches = App::from_yaml(&arg_config)
         .name(APP_NAME)
@@ -35,6 +36,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         ("list", Some(sub_matches)) => command_list(sub_matches),
         _ => command_start(&matches),
     }
+    .map_err(|x| x.into())
 }
 
 fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn error::Error>> {

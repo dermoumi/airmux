@@ -16,8 +16,8 @@ pub enum Error {
     AppAuthorEmpty {},
     #[snafu(display("tmux command cannot be empty"))]
     TmuxCommandEmpty {},
-    #[snafu(display("config-dir should be a directory"))]
-    ConfigDirIsNotADirectory {},
+    #[snafu(display("config-dir {:?} should be a directory", path))]
+    ConfigDirIsNotADirectory { path: OsString }, // nocov
 }
 
 pub struct Config {
@@ -54,7 +54,7 @@ impl Config {
 
         if let Some(config_dir) = &self.config_dir {
             let path = PathBuf::from(config_dir);
-            ensure!(!path.is_file(), ConfigDirIsNotADirectory {});
+            ensure!(!path.is_file(), ConfigDirIsNotADirectory { path });
 
             mkdirp(&config_dir)?;
         };
@@ -132,7 +132,6 @@ mod tests {
         let matches = app.get_matches_from(vec!["rmux", "-t", tmux_command, "-c", config_dir]);
 
         let test_config = Config::from_args(APP_NAME, APP_AUTHOR, &matches);
-
         assert_eq!(test_config.tmux_command, tmux_command);
         assert_eq!(test_config.config_dir, Some(PathBuf::from(config_dir)));
     }
@@ -148,7 +147,6 @@ mod tests {
         let matches = app.get_matches_from(vec!["rmux", "-c", config_dir]);
 
         let test_config = Config::from_args(APP_NAME, APP_AUTHOR, &matches);
-
         assert_eq!(test_config.tmux_command, default_tmux_command);
         assert_eq!(test_config.config_dir, Some(PathBuf::from(config_dir)));
     }
@@ -156,10 +154,9 @@ mod tests {
     #[test]
     fn check_fails_when_app_name_is_empty() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
-
         let test_config = make_config(Some(""), None, None, Some(temp_dir));
-        let result = test_config.check();
 
+        let result = test_config.check();
         assert!(result.is_err());
         assert!(matches!(
             result.err().unwrap().downcast_ref::<Error>(),
@@ -170,10 +167,9 @@ mod tests {
     #[test]
     fn check_fails_when_author_name_is_empty() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
-
         let test_config = make_config(None, Some(""), None, Some(temp_dir));
-        let result = test_config.check();
 
+        let result = test_config.check();
         assert!(result.is_err());
         assert!(matches!(
             result.err().unwrap().downcast_ref::<Error>(),
@@ -184,10 +180,9 @@ mod tests {
     #[test]
     fn check_fails_when_tmux_command_is_empty() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
-
         let test_config = make_config(None, None, Some(OsString::new()), Some(temp_dir));
-        let result = test_config.check();
 
+        let result = test_config.check();
         assert!(result.is_err());
         assert!(matches!(
             result.err().unwrap().downcast_ref::<Error>(),
@@ -204,13 +199,14 @@ mod tests {
         file.sync_all().unwrap();
         drop(file);
 
-        let test_config = make_config(None, None, None, Some(temp_file_path));
-        let result = test_config.check();
+        assert!(temp_file_path.is_file());
+        let test_config = make_config(None, None, None, Some(temp_file_path.clone()));
 
+        let result = test_config.check();
         assert!(result.is_err());
         assert!(matches!(
-            result.err().unwrap().downcast_ref::<Error>(),
-            Some(&Error::ConfigDirIsNotADirectory {})
+            result.err().unwrap().downcast_ref::<Error>().unwrap(),
+            Error::ConfigDirIsNotADirectory { path } if path == temp_file_path.as_os_str()
         ));
     }
 
@@ -219,10 +215,9 @@ mod tests {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
 
         let test_config = make_config(None, None, None, Some(temp_dir.clone()));
-
         assert!(!temp_dir.exists());
-        let result = test_config.check();
 
+        let result = test_config.check();
         assert!(result.is_ok());
         assert!(temp_dir.is_dir());
     }
@@ -234,18 +229,21 @@ mod tests {
         let result = test_config.get_config_dir("");
         assert!(result.is_err());
         assert!(matches!(
-            result.err().unwrap().downcast_ref::<AppDirsError>(),
-            Some(AppDirsError::InvalidAppInfo),
+            result
+                .err()
+                .unwrap()
+                .downcast_ref::<AppDirsError>()
+                .unwrap(),
+            AppDirsError::InvalidAppInfo
         ));
     }
 
     #[test]
     fn get_config_dir_returns_correct_path() {
         let temp_dir = tempdir().unwrap().path().to_path_buf();
-
         let test_config = make_config(None, None, None, Some(temp_dir.clone()));
-        let result = test_config.get_config_dir("").unwrap();
 
+        let result = test_config.get_config_dir("").unwrap();
         assert_eq!(temp_dir, result);
     }
 
@@ -258,7 +256,6 @@ mod tests {
         let test_config = make_config(None, None, None, Some(temp_dir));
 
         let result = test_config.get_config_dir(subdir).unwrap();
-
         assert_eq!(expected_path, result);
     }
 
@@ -270,7 +267,6 @@ mod tests {
         let test_config = make_config(None, None, None, Some(temp_dir));
 
         let result = test_config.get_projects_dir("").unwrap();
-
         assert_eq!(expected_path, result);
     }
 

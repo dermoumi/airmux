@@ -11,7 +11,7 @@ use std::process::Command;
 
 #[derive(Debug, Snafu)]
 pub enum Error {
-    #[snafu(display("the EDITOR variable should not be empty"))]
+    #[snafu(display("editor cannot be empty"))]
     EditorEmpty {},
 }
 
