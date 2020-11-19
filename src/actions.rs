@@ -10,7 +10,7 @@ use std::error;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::prelude::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(Debug, Snafu)]
@@ -19,6 +19,8 @@ pub enum Error {
     EditorEmpty {},
     #[snafu(display("project {:?} does not exist", project_name))]
     ProjectDoesNotExist { project_name: OsString },
+    #[snafu(display("project file {:?} is a directory", path))]
+    ProjectFileIsADirectory { path: PathBuf },
 }
 
 pub fn start_project<S: AsRef<OsStr>>(
@@ -31,8 +33,7 @@ pub fn start_project<S: AsRef<OsStr>>(
     println!("Start {:?} and attaching? {:?}", project_name, attach);
 
     // Parse yaml file
-    // Build tmux commands
-    // Run tmux commands
+    // Build and run tmux commands
     // Attach if requested
 
     Ok(()) // nocov
@@ -56,13 +57,18 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
 
     // Make sure the project's yml file exists
     let project_path = data_dir.join(project_name).with_extension("yml");
+    ensure!(
+        !project_path.is_dir(),
+        ProjectFileIsADirectory { path: project_path }
+    );
     if !project_path.exists() {
         edit::create_project(project_name, &project_path)?;
     }
 
     // Open it with editor
     let (command, args) = utils::parse_command(editor, &[project_path.as_os_str()])?;
-    Command::new(command).args(args).output()?;
+    let mut child = Command::new(command).args(args).spawn()?;
+    child.wait()?;
 
     // TODO: Perform a yaml check on the file
 
@@ -91,6 +97,7 @@ pub fn remove_project<S: AsRef<OsStr>>(
             .show_default(true)
             .interact()?
     {
+        println!("Aborted.");
         return Ok(());
     }
 
@@ -103,6 +110,7 @@ pub fn remove_project<S: AsRef<OsStr>>(
         let _ = fs::remove_dir(parent);
     }
 
+    println!("Project {:?} removed successfully.", project_name);
     Ok(())
 }
 
@@ -279,6 +287,29 @@ mod tests {
         assert!(subdir_path.is_dir());
         assert!(project_path.is_file());
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn edit_project_fails_when_project_path_is_directory() {
+        let temp_dir = tempdir().unwrap();
+        let temp_dir = temp_dir.path().to_path_buf();
+        let test_config = make_config(None, None, None, Some(temp_dir));
+        let project_name = "project";
+        let project_path = test_config
+            .get_projects_dir(project_name)
+            .unwrap()
+            .with_extension("yml");
+
+        mkdirp(&project_path).unwrap();
+        assert!(&project_path.is_dir());
+
+        let result = edit_project(&test_config, project_name, "test");
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.err().unwrap().downcast_ref::<Error>().unwrap(),
+            Error::ProjectFileIsADirectory { path } if path == &project_path
+        ));
     }
 
     #[test]
