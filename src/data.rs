@@ -47,6 +47,8 @@ pub struct Window {
     #[serde(default)]
     pub working_dir: Option<PathBuf>,
     #[serde(default)]
+    pub layout: Option<String>,
+    #[serde(default)]
     pub panes: Vec<Pane>,
 }
 
@@ -89,6 +91,18 @@ impl<'de> Deserialize<'de> for Window {
             _ => Ok(None),
         }?;
 
+        let layout = match window_definition.as_mapping() {
+            None => None,
+            Some(content) => match content.get(&"layout".into()) {
+                None => None,
+                Some(layout) => match layout {
+                    w if w.is_string() => Ok(w.as_str().map(|x| x.into())),
+                    w if w.is_null() => Ok(None),
+                    _ => Err(de::Error::custom("expected layout to be a string")),
+                }?,
+            },
+        };
+
         let panes = match window_definition {
             d if d.is_mapping() => match d.as_mapping().unwrap().get(&"panes".into()) {
                 None => Ok(vec![]),
@@ -115,14 +129,16 @@ impl<'de> Deserialize<'de> for Window {
             name,
             working_dir,
             panes,
+            layout,
         });
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub enum PaneSplit {
+    #[serde(rename = "horizontal")]
     Horizontal,
+    #[serde(rename = "vertical")]
     Vertical,
 }
 
@@ -137,9 +153,9 @@ pub struct Pane {
     #[serde(default)]
     pub split_size: Option<String>,
     #[serde(default)]
-    pub commands: Vec<String>,
-    #[serde(default)]
     pub post_create: Vec<String>,
+    #[serde(default)]
+    pub commands: Vec<String>,
 }
 
 impl<'de> Deserialize<'de> for Pane {

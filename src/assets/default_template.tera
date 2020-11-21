@@ -91,6 +91,11 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- endfor %}
     {%- endfor %}
 
+    {%- if window.layout %}
+    {%- set window_layout = window.layout | quote %}
+    select-layout -t {{ target_window }} {{ window_layout }}
+    {%- endif %}
+
     {%- for pane in window.panes %}
     {%- set pane_index = loop.index - 1 + project.pane_base_index %}
     {%- set cmd_pane_env =  cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
