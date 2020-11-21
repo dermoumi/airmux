@@ -47,7 +47,7 @@ pub fn start_project<S: AsRef<OsStr>>(
     // TODO: Parse yaml file
     let project = data::Project {
         name: String::from(project_name.to_string_lossy()),
-        template: None,
+        template: data::ProjectTemplate::Default,
         session_name: Some(String::from(project_name.to_string_lossy())),
         window_base_index: 1,
         pane_base_index: 1,
@@ -111,9 +111,19 @@ pub fn start_project<S: AsRef<OsStr>>(
     let mut tera = Tera::default();
     tera.register_filter("quote", source::QuoteFilter {});
 
+    let template_content;
     let template = match project.template {
-        Some(_) => project.template.as_ref().unwrap(),
-        None => template.unwrap_or(include_str!("assets/default_template.tera")),
+        data::ProjectTemplate::Raw(content) => {
+            template_content = content;
+            template_content.as_str()
+        }
+        data::ProjectTemplate::File(filename) => {
+            template_content = fs::read_to_string(filename)?;
+            template_content.as_str()
+        }
+        data::ProjectTemplate::Default => {
+            template.unwrap_or(include_str!("assets/default_template.tera"))
+        }
     };
 
     let source = tera.render_str(template, &context)?;

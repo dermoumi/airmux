@@ -3,9 +3,16 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum ProjectTemplate {
+    Raw(String),
+    File(PathBuf),
+    Default,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Project {
     pub name: String,
-    pub template: Option<String>,
+    pub template: ProjectTemplate,
     pub session_name: Option<String>,
     pub windows: Vec<Window>,
     pub window_base_index: u32,
@@ -16,7 +23,7 @@ impl Project {
     pub fn new(name: &str) -> Project {
         Project {
             name: name.into(),
-            template: None,
+            template: ProjectTemplate::Default,
             session_name: None,
             windows: vec![],
             window_base_index: 1,
