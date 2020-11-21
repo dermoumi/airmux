@@ -1,17 +1,22 @@
 use crate::config;
+use crate::data;
 use crate::utils;
 
 use config::Config;
 use dialoguer::Confirm;
 use mkdirp::mkdirp;
+use serde_json::{json, value::Value};
+use shell_words::quote;
 use snafu::{ensure, Snafu};
+use tera::{Context, Tera};
 
+use std::collections::HashMap;
 use std::error;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[derive(Debug, Snafu)]
 pub enum Error {
@@ -23,20 +28,111 @@ pub enum Error {
     ProjectDoesNotExist { project_name: OsString }, // nocov
     #[snafu(display("project file {:?} is a directory", path))]
     ProjectFileIsADirectory { path: PathBuf }, // nocov
+    #[snafu(display("cannot pipe to tmux command"))]
+    CannotPipeToTmux,
 }
 
 pub fn start_project<S: AsRef<OsStr>>(
-    _: &Config,
+    config: &Config,
     project_name: S,
+    template: Option<&str>,
     attach: bool,
+    show_source: bool,
 ) -> Result<(), Box<dyn error::Error>> {
     let project_name = project_name.as_ref();
     ensure!(!project_name.is_empty(), ProjectNameEmpty {});
 
-    println!("Start {:?} and attaching? {:?}", project_name, attach);
+    let tmux_command = &config.tmux_command;
 
-    // Parse yaml file
+    // TODO: Parse yaml file
+    let project = data::Project {
+        name: String::from(project_name.to_string_lossy()),
+        template: None,
+        session_name: Some(String::from(project_name.to_string_lossy())),
+        window_base_index: 1,
+        pane_base_index: 1,
+        windows: vec![
+            data::Window {
+                name: Some(String::from("win1")),
+                working_dir: None,
+                panes: vec![data::Pane {
+                    working_dir: Some(PathBuf::from("/home")),
+                    commands: vec![String::from("echo hello")],
+                    post_create: vec![],
+                    split: None,
+                    split_from: None,
+                    split_size: None,
+                }],
+            },
+            data::Window {
+                name: None,
+                working_dir: None,
+                panes: vec![],
+            },
+            data::Window {
+                name: Some(String::from("win2")),
+                working_dir: Some(PathBuf::from("/srv")),
+                panes: vec![
+                    data::Pane {
+                        working_dir: None,
+                        commands: vec![],
+                        post_create: vec![String::from("send-keys -t __PANE__ C-l")],
+                        split: None,
+                        split_from: None,
+                        split_size: None,
+                    },
+                    data::Pane {
+                        working_dir: None,
+                        commands: vec![String::from("echo hello")],
+                        post_create: vec![],
+                        split: None,
+                        split_from: None,
+                        split_size: None,
+                    },
+                    data::Pane {
+                        working_dir: Some(PathBuf::from("/")),
+                        commands: vec![String::from("echo hello")],
+                        post_create: vec![String::from("send-keys -t __PANE__ C-l")],
+                        split: Some(data::PaneSplit::Vertical),
+                        split_from: Some(0),
+                        split_size: Some(String::from("75%")),
+                    },
+                ],
+            },
+        ],
+    };
+
     // Build and run tmux commands
+    let mut context = Context::new();
+    context.insert("tmux_command", &tmux_command.to_string_lossy());
+    context.insert("project", &project);
+    context.insert("attach", &attach);
+
+    let mut tera = Tera::default();
+    tera.register_filter("quote", source::QuoteFilter {});
+
+    let template = match project.template {
+        Some(_) => project.template.as_ref().unwrap(),
+        None => template.unwrap_or(include_str!("assets/default_template.tera")),
+    };
+
+    let source = tera.render_str(template, &context)?;
+
+    // Run tmux
+    if show_source {
+        println!("{}", source);
+    } else {
+        let child = Command::new(tmux_command)
+            .args(vec!["source", "-"])
+            .stdin(Stdio::piped())
+            .spawn()?;
+
+        child
+            .stdin
+            .ok_or(Error::CannotPipeToTmux)?
+            .write_all(source.as_bytes())?;
+    }
+
     // Attach if requested
 
     Ok(()) // nocov
@@ -46,6 +142,7 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     config: &Config,
     project_name: S1,
     editor: S2,
+    no_check: bool,
 ) -> Result<(), Box<dyn error::Error>> {
     let project_name = project_name.as_ref();
     ensure!(!project_name.is_empty(), ProjectNameEmpty {});
@@ -71,9 +168,11 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     // Open it with editor
     let (command, args) = utils::parse_command(editor, &[project_path.as_os_str()])?;
     let mut child = Command::new(command).args(args).spawn()?;
-    child.wait()?;
 
-    // TODO: Perform a yaml check on the file
+    if !no_check {
+        child.wait()?;
+        // TODO: Perform a yaml check on the file
+    }
 
     Ok(())
 }
@@ -134,6 +233,27 @@ pub fn list_projects(config: &Config) -> Result<(), Box<dyn error::Error>> {
     Ok(())
 }
 
+mod source {
+    use super::*;
+
+    pub struct QuoteFilter;
+
+    impl tera::Filter for QuoteFilter {
+        fn filter(
+            &self,
+            value: &Value,
+            _args: &HashMap<String, Value>,
+        ) -> Result<Value, tera::Error> {
+            let str_value = value.as_str().ok_or(tera::Error::msg(format!(
+                "cannot quote {:?}: not a string",
+                value
+            )))?;
+
+            Ok(json!(String::from(quote(str_value))))
+        }
+    }
+}
+
 mod edit {
     use super::*;
 
@@ -144,7 +264,7 @@ mod edit {
         let project_name = project_name.as_ref();
         let project_path = project_path.as_ref();
 
-        let default_project_yml = include_str!("default_project.yml")
+        let default_project_yml = include_str!("assets/default_project.yml")
             .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
 
         let mut file = fs::File::create(&project_path)?;

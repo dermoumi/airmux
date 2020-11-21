@@ -1,0 +1,111 @@
+{%- set cmd = tmux_command | quote -%}
+{%- set session_name = project.session_name | quote -%}
+
+# Check if there's already a session with the same name and create it if not
+if-shell {{ '! ' ~ cmd ~ ' list-session | grep ' ~ session_name | quote }} {
+    new-session -s {{ session_name }} -d
+
+    # Move existing window to the base index if it's different
+    {%- set src_window = project.session_name ~ ':^' | quote %}
+    {%- set dst_window = project.session_name ~ ':999999' | quote %}
+    move-window -s {{ src_window }} -t {{ dst_window }}
+
+    set-environment -g __RMUX_FRESH_SESSION 1
+}
+
+# Set base window and pane indices
+set -s -t {{ session_name }} base-index {{ project.window_base_index }}
+set -s -t {{ session_name }} pane-base-index {{ project.pane_base_index }}
+
+{% for window in project.windows -%}
+{% set window_index = loop.index - 1 + project.window_base_index -%}
+
+# Create window {{ window_index }} ( {{ window.name | default(value="-") }} ) if it does not exist
+if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep -Fx ' ~ window_index | quote }} {
+    {% set target_window = project.session_name ~ ':' ~ window_index | quote -%}
+
+    # Create window and rename it
+    {%- set arg_working_dir = '' %}
+    {%- set window_pane_count = window.panes | length %}
+    {%- if window_pane_count > 0 and window.panes[0].working_dir %}
+        {%- set working_dir = window.panes[0].working_dir | quote %}
+        {%- set arg_working_dir = ' -c ' ~ working_dir %}
+    {%- endif %}
+    new-window -d{{ arg_working_dir }} -t {{ target_window }}
+
+    {%- if window.name %}
+    {%- set window_name = window.name | quote %}
+    rename-window -t {{ target_window }} {{ window_name }}
+    {%- endif %}
+
+    {%- for pane in window.panes %}
+    {%- set pane_index = loop.index - 1 %}
+
+    # Pane {{ pane_index }}
+    {%- if loop.index != 1 %}
+    {% set arg_split = ' -h' %}
+    {%- if pane.split and pane.split | lower == 'vertical' %}
+        {%- set arg_split = ' -v' %}
+    {%- endif -%}
+
+    {%- set arg_working_dir = '' %}
+    {%- if pane.working_dir %}
+        {%- set working_dir = pane.working_dir | quote %}
+        {%- set arg_working_dir = ' -c ' ~ working_dir %}
+    {%- elif window.working_dir %}
+        {%- set working_dir = window.working_dir | quote %}
+        {%- set arg_working_dir = ' -c ' ~ working_dir %}
+    {%- endif -%}
+
+    {%- set arg_size = '' %}
+    {%- if pane.split_size %}
+        {%- set split_size = pane.split_size | quote %}
+        {%- set arg_size = ' -l ' ~ split_size %}
+    {%- endif -%}
+
+    {%- set arg_target = ' -t ' ~ target_window %}
+    {%- if pane.split_from or pane.split_from == 0 %}
+        {%- set split_from = project.session_name ~ ':' ~ window_index ~ '.#{__RMUX_PANE_' ~ pane.split_from ~ '}'| quote %}
+        {%- set arg_target = ' -t ' ~ split_from %}
+    {%- endif -%}
+
+    {%- set cmd_split = cmd ~ ' split-window' ~ arg_split ~ arg_working_dir ~ arg_size ~ arg_target -%}
+    run-shell {{ cmd_split | quote }}
+    {%- endif %}
+    {%- set cmd_pane_env =  cmd ~ ' set-environment -t ' ~ session_name ~ ' -g __RMUX_PANE_' ~ pane_index ~ ' "#D"' | quote %}
+    run-shell -t '{{ target_window }}' {{ cmd_pane_env }}
+    {%- set target_pane = project.session_name ~ ':' ~ window_index ~ '.#{__RMUX_PANE_' ~ pane_index ~ '}' | quote %}
+
+    {%- for command in pane.commands %}
+    {%- set cmd_quoted = command | quote %}
+    {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
+    run-shell {{ send_keys_cmd }}
+    {%- endfor %}
+
+    {%- for command in pane.post_create %}
+    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
+                                            | replace(from="__WINDOW__", to=target_window)
+                                            | replace(from="__PANE__", to=target_pane)
+                                            | quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endfor %}
+    {%- endfor %}
+
+    {%- for pane in window.panes %}
+    {%- set pane_index = loop.index - 1 + project.pane_base_index %}
+    {%- set cmd_pane_env =  cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
+    {%- endfor %}
+}
+
+{% endfor -%}
+
+# If the session was freshly created, remove the original window
+if-shell -F '#{__RMUX_FRESH_SESSION}' {
+    {%- set initial_window = project.session_name ~ ':999999' | quote %}
+    kill-window -t {{ initial_window }}
+
+    {%- set first_window = project.session_name ~ ':^' | quote %}
+    select-window -t {{ first_window }}
+
+    set-environment -gu __RMUX_FRESH_SESSION
+}

@@ -1,4 +1,9 @@
 name: rmux
+settings:
+  - SubcommandRequired
+  - VersionlessSubcommands
+  - InferSubcommands
+  - ColoredHelp
 args:
   - tmux_command:
       global: true
@@ -15,31 +20,56 @@ args:
       long: config-dir
       value_name: DIR
       env: RMUX_CONFIG
-  - NAME:
-      help: name of the project
-      index: 1
 subcommands:
   - list:
+      settings:
+        - ColoredHelp
       about: List all configured projects
       alias: ls
   - start:
+      settings:
+        - ColoredHelp
       about: Start a project as a tmux session
       args:
-        - NAME:
+        - project_name:
             help: name of the project
+            value_name: PROJECT_NAME
+            required: true
             index: 1
+        - template:
+            help: template file for generating tmux commands
+            short: m
+            long: template
+            value_name: TEMPLATE
         - no_attach:
             help: don't automatically attach the session
             short: "n"
             long: no-attach
+        - source:
+            help: only print tmux command source without actually running tmux
+            long: source
+            short: s
+  - kill:
+      settings:
+        - ColoredHelp
+      about: Kill tmux session that matches the project
+      args:
+        - project_name:
+            help: name of the project
+            value_name: PROJECT_NAME
+            required: true
+            index: 1
   - edit:
+      settings:
+        - ColoredHelp
       about: Create or edit a project
       alias: new
       args:
-        - NAME:
+        - project_name:
             help: name of the project
-            index: 1
+            value_name: PROJECT_NAME
             required: true
+            index: 1
         - editor:
             help: the editor to use
             short: e
@@ -47,14 +77,21 @@ subcommands:
             required: true
             value_name: EDITOR
             env: EDITOR
+        - no_check:
+            help: do not check the project file
+            short: "n"
+            long: no-check
   - remove:
-      about: Remove a project
+      settings:
+        - ColoredHelp
+      about: Remove a project (does not affect loaded tmux sessions)
       aliases:
         - rm
         - delete
       args:
-        - NAME:
+        - project_name:
             help: name of the project
+            value_name: PROJECT_NAME
             required: true
             index: 1
         - no_input:

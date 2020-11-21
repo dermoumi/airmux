@@ -29,7 +29,7 @@ fn edit_project_fails_when_editor_is_empty() {
     let test_config = make_config(None, None, None, Some(temp_dir));
 
     assert!(matches!(
-        edit_project(&test_config, "project", "")
+        edit_project(&test_config, "project", "", false)
             .err()
             .unwrap()
             .downcast_ref::<Error>()
@@ -49,7 +49,7 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
         .unwrap()
         .with_extension("yml");
 
-    let result = edit_project(&test_config, project_name, "test");
+    let result = edit_project(&test_config, project_name, "test", false);
 
     assert!(project_path.is_file());
     assert!(result.is_ok());
@@ -70,7 +70,7 @@ fn edit_project_succeeds_when_project_file_exists() {
     assert!(project_path.is_file());
 
     // Run edit_project
-    let result = edit_project(&test_config, project_name, "test");
+    let result = edit_project(&test_config, project_name, "test", false);
 
     assert!(project_path.is_file());
     assert!(result.is_ok());
@@ -88,7 +88,7 @@ fn edit_project_creates_sub_directories_as_needed() {
         .with_extension("yml");
     let subdir_path = test_config.get_projects_dir("subdir1/subdir2").unwrap();
 
-    let result = edit_project(&test_config, project_name, "test");
+    let result = edit_project(&test_config, project_name, "test", false);
 
     assert!(subdir_path.is_dir());
     assert!(project_path.is_file());
@@ -109,7 +109,7 @@ fn edit_project_fails_when_project_path_is_directory() {
     mkdirp(&project_path).unwrap();
     assert!(&project_path.is_dir());
 
-    let result = edit_project(&test_config, project_name, "test");
+    let result = edit_project(&test_config, project_name, "test", false);
     assert!(result.is_err());
     assert!(matches!(
         result.err().unwrap().downcast_ref::<Error>().unwrap(),
@@ -124,7 +124,7 @@ fn edit_project_project_name_cannot_be_empty() {
     let test_config = make_config(None, None, None, Some(temp_dir));
     let project_name = "";
 
-    let result = edit_project(&test_config, project_name, "test");
+    let result = edit_project(&test_config, project_name, "test", false);
     assert!(result.is_err());
     assert!(matches!(
         result.err().unwrap().downcast_ref::<Error>().unwrap(),
