@@ -3,6 +3,7 @@ use crate::data;
 use crate::utils;
 
 use config::Config;
+
 use dialoguer::Confirm;
 use mkdirp::mkdirp;
 use serde_json::{json, value::Value};
@@ -44,63 +45,13 @@ pub fn start_project<S: AsRef<OsStr>>(
 
     let tmux_command = &config.tmux_command;
 
-    // TODO: Parse yaml file
-    let project = data::Project {
-        name: String::from(project_name.to_string_lossy()),
-        template: data::ProjectTemplate::Default,
-        session_name: Some(String::from(project_name.to_string_lossy())),
-        window_base_index: 1,
-        pane_base_index: 1,
-        windows: vec![
-            data::Window {
-                name: Some(String::from("win1")),
-                working_dir: None,
-                panes: vec![data::Pane {
-                    working_dir: Some(PathBuf::from("/home")),
-                    commands: vec![String::from("echo hello")],
-                    post_create: vec![],
-                    split: None,
-                    split_from: None,
-                    split_size: None,
-                }],
-            },
-            data::Window {
-                name: None,
-                working_dir: None,
-                panes: vec![],
-            },
-            data::Window {
-                name: Some(String::from("win2")),
-                working_dir: Some(PathBuf::from("/srv")),
-                panes: vec![
-                    data::Pane {
-                        working_dir: None,
-                        commands: vec![],
-                        post_create: vec![String::from("send-keys -t __PANE__ C-l")],
-                        split: None,
-                        split_from: None,
-                        split_size: None,
-                    },
-                    data::Pane {
-                        working_dir: None,
-                        commands: vec![String::from("echo hello")],
-                        post_create: vec![],
-                        split: None,
-                        split_from: None,
-                        split_size: None,
-                    },
-                    data::Pane {
-                        working_dir: Some(PathBuf::from("/")),
-                        commands: vec![String::from("echo hello")],
-                        post_create: vec![String::from("send-keys -t __PANE__ C-l")],
-                        split: Some(data::PaneSplit::Vertical),
-                        split_from: Some(0),
-                        split_size: Some(String::from("75%")),
-                    },
-                ],
-            },
-        ],
-    };
+    let projects_dir = config.get_projects_dir("")?;
+    let project_path = projects_dir.join(project_name).with_extension("yml");
+    ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
+
+    let project_yaml = fs::read_to_string(project_path)?;
+    let mut project: data::Project = serde_yaml::from_str(&project_yaml)?;
+    project.ensure_name(&project_name.to_string_lossy());
 
     // Build and run tmux commands
     let mut context = Context::new();
@@ -196,7 +147,6 @@ pub fn remove_project<S: AsRef<OsStr>>(
     ensure!(!project_name.is_empty(), ProjectNameEmpty {});
 
     let projects_dir = config.get_projects_dir("")?;
-
     let project_path = projects_dir.join(project_name).with_extension("yml");
     ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
 
