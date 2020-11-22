@@ -1,4 +1,6 @@
 # All fields are optional but at least one is required
+# You can use ${ENV_VAR} or ${ENV_VAR:-fallback_value} to expand environment variables
+# Escape $ by writing it twice: $$ENV_VAR -> $ENV_VAR
 
 # Session name. If not specified defaults to project name. Should not contain `:` or `.`
 # Default: project name
@@ -6,7 +8,7 @@ name: "test"
 
 # Root directory for windows and panes. Can be overridden for each window or panel.
 # Default: current working directory
-root: "~/"
+root: ~
 
 # Attach the project after creation. Can be overridden with --attach and --no-attach arguments
 # Default: true

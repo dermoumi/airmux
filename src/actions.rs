@@ -8,10 +8,12 @@ use dialoguer::Confirm;
 use mkdirp::mkdirp;
 use serde_json::{json, value::Value};
 use shell_words::quote;
+use shellexpand::env_with_context;
 use snafu::{ensure, Snafu};
 use tera::{Context, Tera};
 
 use std::collections::HashMap;
+use std::env;
 use std::error;
 use std::ffi::{OsStr, OsString};
 use std::fs;
@@ -81,10 +83,16 @@ pub fn start_project<S: AsRef<OsStr>>(
         let (tmux_command, tmux_args) =
             project.get_tmux_command(vec![OsString::from("source"), OsString::from("-")])?;
 
-        let mut child = Command::new(tmux_command)
-            .args(tmux_args)
-            .stdin(Stdio::piped())
-            .spawn()?;
+        let mut command = Command::new(tmux_command);
+        command.args(tmux_args).stdin(Stdio::piped());
+
+        if let Some(path) = &project.working_dir {
+            if path.is_dir() {
+                command.current_dir(path);
+            }
+        }
+
+        let mut child = command.spawn()?;
         child
             .stdin
             .as_mut()
@@ -255,6 +263,9 @@ mod project {
         ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
 
         let project_yaml = fs::read_to_string(project_path)?;
+        let project_yaml = env_with_context(&project_yaml, env_context)
+            .map_err(|x| x.to_string())?
+            .to_string();
 
         Ok(
             serde_yaml::from_str::<data::Project>(&project_yaml)?.prepare(
@@ -263,6 +274,11 @@ mod project {
                 force_attach,
             ),
         )
+    }
+
+    fn env_context(s: &str) -> Result<Option<String>, Box<dyn error::Error>> {
+        println!("AAA {:?}", s);
+        Ok(env::var(s).ok().or(Some("".into())))
     }
 }
 

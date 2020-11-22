@@ -30,6 +30,9 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- if window_pane_count > 0 and window.panes[0].working_dir %}
         {%- set working_dir = window.panes[0].working_dir | quote %}
         {%- set arg_working_dir = ' -c ' ~ working_dir %}
+    {%- elif project.working_dir %}
+        {%- set working_dir = project.working_dir | quote %}
+        {%- set arg_working_dir = ' -c ' ~ working_dir %}
     {%- endif %}
     new-window -d{{ arg_working_dir }} -t {{ target_window }}
 
@@ -54,6 +57,9 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
         {%- set arg_working_dir = ' -c ' ~ working_dir %}
     {%- elif window.working_dir %}
         {%- set working_dir = window.working_dir | quote %}
+        {%- set arg_working_dir = ' -c ' ~ working_dir %}
+    {%- elif project.working_dir %}
+        {%- set working_dir = project.working_dir | quote %}
         {%- set arg_working_dir = ' -c ' ~ working_dir %}
     {%- endif -%}
 

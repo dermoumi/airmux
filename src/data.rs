@@ -5,6 +5,7 @@ use serde::{de, ser};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use shell_words::{quote, split};
+use shellexpand::tilde;
 
 use std::error::Error;
 use std::ffi::OsString;
@@ -171,8 +172,8 @@ impl Project {
         let val: Value = de::Deserialize::deserialize(deserializer)?;
 
         match val {
-            p if p.is_string() => Ok(Some(p.as_str().unwrap().into())),
-            p if p.is_null() => Ok(Some("~".into())),
+            p if p.is_string() => Ok(Some(tilde(p.as_str().unwrap()).to_string().into())),
+            p if p.is_null() => Ok(Some(tilde("~").to_string().into())),
             _ => Err("expected working_dir to be a string or null"),
         }
         .map_err(de::Error::custom)
@@ -454,8 +455,8 @@ impl Window {
     fn de_working_dir(val: Option<&Value>) -> Result<Option<PathBuf>, Box<dyn Error>> {
         Ok(match val {
             Some(x) => Some(match x {
-                p if p.is_string() => p.as_str().unwrap().into(),
-                p if p.is_null() => PathBuf::from("~"),
+                p if p.is_string() => tilde(p.as_str().unwrap()).to_string().into(),
+                p if p.is_null() => tilde("~").to_string().into(),
                 _ => Err("expected working_dir to be a string or null")?,
             }),
             None => None,
@@ -566,8 +567,8 @@ impl Pane {
     fn de_working_dir(val: Option<&Value>) -> Result<Option<PathBuf>, Box<dyn Error>> {
         Ok(match val {
             Some(x) => Some(match x {
-                p if p.is_string() => p.as_str().unwrap().into(),
-                p if p.is_null() => PathBuf::from("~"),
+                p if p.is_string() => tilde(p.as_str().unwrap()).to_string().into(),
+                p if p.is_null() => tilde("~").to_string().into(),
                 _ => Err("expected working_dir to be a string or null")?,
             }),
             None => None,
