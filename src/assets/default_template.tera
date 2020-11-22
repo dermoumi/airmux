@@ -115,6 +115,7 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- endfor %}
 
     {%- if pane.clear %}
+
     # Clear pane
     {%- set cmd_quoted = cmd ~ ' send-keys -t ' ~ target_pane ~ ' C-l'| quote %}
     run-shell {{ cmd_quoted }}
@@ -122,26 +123,25 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- endfor %}
 
     {%- if window.layout %}
-    {%- set window_layout = window.layout | quote %}
+    {% set window_layout = window.layout | quote %}
     select-layout -t {{ target_window }} {{ window_layout }}
     {%- endif %}
 
-    {%- for pane in window.panes %}
+    {% for pane in window.panes %}
     {%- set pane_index = loop.index - 1 + project.pane_base_index %}
-    {%- set cmd_pane_env = cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
+    {%- set cmd_pane_env = cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote -%}
     run-shell {{ cmd_pane_env }}
-    {%- endfor %}
+    {% endfor %}
 
-    {%- for command in window.post_create %}
+    {%- for command in window.post_create -%}
     {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
                                              | replace(from="__WINDOW__", to=target_window)
                                              | quote %}
     run-shell {{ cmd_quoted }}
-    {%- endfor %}
+    {% endfor -%}
 
-    {% set startup_pane = project.session_name ~ ':' ~ window_index ~ '.' ~ project.pane_base_index | quote -%}
+    {% set startup_pane = project.session_name ~ ':' ~ window_index ~ '.' ~ project.pane_base_index | quote %}
     select-pane -t {{ startup_pane }}
-
     set-environment -g __RMUX_SESSION_UPDATED 1
 }
 
@@ -160,12 +160,14 @@ if-shell -F '#{__RMUX_SESSION_CREATED}' {
     select-window -t {{ startup_window }}
 }
 
+{% if verbose -%}
 # Show indicator message
 {%- set created_msg = 'created new session: ' ~ session_name %}
 {%- set updated_msg = 'updated session: ' ~ session_name %}
 {%- set nothing_msg = 'no changes to existing session: ' ~ session_name %}
 display -p "#{?__RMUX_SESSION_CREATED,{{ created_msg }},#{?__RMUX_SESSION_UPDATED,{{ updated_msg }},{{ nothing_msg }}}}"
 
+{% endif -%}
 # Clear variables
 set-environment -gu __RMUX_SESSION_CREATED
 set-environment -gu __RMUX_SESSION_UPDATED

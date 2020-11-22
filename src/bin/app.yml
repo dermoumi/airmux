@@ -47,12 +47,16 @@ subcommands:
             conflicts_with: no_attach
         - no_attach:
             help: don't automatically attach the session
-            short: A
+            short: d
             long: no-attach
         - source:
             help: only print tmux command source without actually running tmux
             long: source
             short: s
+        - verbose:
+            help: shows notification on whether session was created, updated or not changed at all
+            long: verbose
+            short: V
   - kill:
       settings:
         - ColoredHelp

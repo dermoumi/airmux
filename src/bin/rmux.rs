@@ -40,6 +40,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let source = matches.is_present("source");
+    let verbose = matches.is_present("verbose");
 
     let force_attach = if attach {
         Some(true)
@@ -58,7 +59,14 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         _ => None,
     };
 
-    actions::start_project(&config, project_name, template, force_attach, source)
+    actions::start_project(
+        &config,
+        project_name,
+        template,
+        force_attach,
+        source,
+        verbose,
+    )
 }
 
 fn command_kill(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {

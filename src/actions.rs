@@ -45,6 +45,7 @@ pub fn start_project<S: AsRef<OsStr>>(
     template: Option<&str>,
     force_attach: Option<bool>,
     show_source: bool,
+    verbose: bool,
 ) -> Result<(), Box<dyn error::Error>> {
     let project = project::load(config, &project_name, force_attach)?;
     project.check()?;
@@ -52,6 +53,7 @@ pub fn start_project<S: AsRef<OsStr>>(
     // Build and run tmux commands
     let mut context = Context::new();
     context.insert("project", &project);
+    context.insert("verbose", &verbose);
 
     let template_comand = project.get_tmux_command_for_template()?;
     context.insert("tmux_command", &template_comand);
@@ -130,9 +132,6 @@ pub fn start_project<S: AsRef<OsStr>>(
             }
         );
 
-        // Print success message
-        println!("Project {:?} started succesfully", project_name.as_ref());
-
         // Attach
         if project.attach {
             let session_name = project.session_name.as_ref().unwrap();
@@ -175,8 +174,6 @@ pub fn kill_project<S: AsRef<OsStr>>(
             exit_code: status.code().unwrap_or(-1)
         }
     );
-
-    println!("Project {:?} killed successfully.", project_name.as_ref());
 
     Ok(())
 }
