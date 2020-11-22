@@ -93,7 +93,7 @@ fn correct_command_parses_returns_correct_arguments() {
     );
     let command = OsString::from("cmd -flag");
     let arg1 = OsString::from("file");
-    let args = &[arg1.as_os_str()];
+    let args = &[arg1];
 
     let result = parse_command(&command, args).unwrap();
     assert_eq!(result, expected_result);

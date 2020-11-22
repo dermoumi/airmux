@@ -74,7 +74,8 @@ pub fn start_project<S: AsRef<OsStr>>(
     if show_source {
         println!("{}", source);
     } else {
-        let (tmux_command, tmux_args) = project.get_tmux_command(vec!["source", "-"])?;
+        let (tmux_command, tmux_args) =
+            project.get_tmux_command(vec![OsString::from("source"), OsString::from("-")])?;
 
         let mut child = Command::new(tmux_command)
             .args(tmux_args)
@@ -92,8 +93,11 @@ pub fn start_project<S: AsRef<OsStr>>(
         // Attach
         if project.attach {
             let session_name = project.session_name.as_ref().unwrap();
-            let (tmux_command, tmux_args) =
-                project.get_tmux_command(vec!["attach-session", "-t", session_name])?;
+            let (tmux_command, tmux_args) = project.get_tmux_command(vec![
+                OsString::from("attach-session"),
+                OsString::from("-t"),
+                OsString::from(session_name),
+            ])?;
             Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
         }
     }
@@ -129,7 +133,7 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     }
 
     // Open it with editor
-    let (command, args) = utils::parse_command(editor, &[project_path.as_os_str()])?;
+    let (command, args) = utils::parse_command(editor, &[OsString::from(project_path)])?;
     let mut child = Command::new(command).args(args).spawn()?;
 
     if !no_check {

@@ -4,10 +4,10 @@ use crate::utils::{parse_command, valid_tmux_identifier};
 use serde::de;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use shell_words::quote;
+use shell_words::{quote, split};
 
 use std::error::Error;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -16,6 +16,10 @@ pub struct Project {
     pub session_name: Option<String>,
     #[serde(default)]
     pub tmux_command: Option<String>,
+    #[serde(default)]
+    pub tmux_options: Option<String>,
+    #[serde(default, alias = "socket_name")]
+    pub tmux_socket: Option<String>,
     #[serde(default, alias = "root", deserialize_with = "Project::de_working_dir")]
     pub working_dir: Option<PathBuf>,
     #[serde(default = "Project::default_window_base_index")]
@@ -66,21 +70,36 @@ impl Project {
     }
 
     // Makes sure that any arguments passed in tmux_command are instead added as arguments
-    pub fn get_tmux_command<S: AsRef<OsStr>>(
+    pub fn get_tmux_command(
         &self,
-        args: Vec<S>,
+        args: Vec<OsString>,
     ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
-        let command = self.tmux_command.as_ref().ok_or("tmux command not set")?;
+        let command = OsString::from(self.tmux_command.as_ref().ok_or("tmux command not set")?);
 
-        parse_command(
-            &OsString::from(command),
-            &args.iter().map(|a| a.as_ref()).collect::<Vec<&OsStr>>(),
-        )
+        let socket_args: Vec<OsString> = match &self.tmux_socket {
+            Some(tmux_socket) => vec![OsString::from("-L"), OsString::from(tmux_socket)],
+            None => vec![],
+        };
+
+        let mut extra_args: Vec<OsString> = match &self.tmux_options {
+            Some(tmux_options) => split(&tmux_options)?
+                .into_iter()
+                .map(|o| OsString::from(o))
+                .collect(),
+            None => vec![],
+        };
+
+        let mut full_args = socket_args;
+        full_args.append(&mut extra_args);
+        full_args.append(&mut args.into_iter().collect());
+
+        parse_command(&command, &full_args)
     }
 
     // Sanitizes tmux_command for use in the template file
     pub fn get_tmux_command_for_template(&self) -> Result<String, Box<dyn Error>> {
-        let (command, args) = self.get_tmux_command(Vec::<&str>::new())?;
+        let (command, args) = self.get_tmux_command(vec![])?;
+
         Ok(format!(
             "{} {}",
             command.to_string_lossy(),
@@ -145,6 +164,8 @@ impl Default for Project {
         Self {
             session_name: None,
             tmux_command: None,
+            tmux_options: None,
+            tmux_socket: None,
             working_dir: None,
             window_base_index: Self::default_window_base_index(),
             pane_base_index: Self::default_pane_base_index(),

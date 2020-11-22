@@ -51,7 +51,7 @@ pub fn get_project_namespace<S: AsRef<OsStr>>(
 
 pub fn parse_command(
     command: &OsStr,
-    args: &[&OsStr],
+    args: &[OsString],
 ) -> Result<(OsString, Vec<OsString>), Box<dyn error::Error>> {
     ensure!(!command.is_empty(), EmptyCommand {});
 

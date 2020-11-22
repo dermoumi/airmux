@@ -6,7 +6,7 @@ use mkdirp::mkdirp;
 use snafu::{ensure, Snafu};
 
 use std::error;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 const PROJECTS_SUBDIR: &'static str = "projects";
@@ -93,19 +93,16 @@ impl Config {
         self.get_config_dir(projects_path.join(sub_path))
     }
 
-    pub fn get_tmux_command<S: AsRef<OsStr>>(
+    pub fn get_tmux_command(
         &self,
-        args: Vec<S>,
+        args: Vec<OsString>,
     ) -> Result<(OsString, Vec<OsString>), Box<dyn error::Error>> {
         let command = match &self.tmux_command {
             Some(cmd) => cmd.clone(),
             None => OsString::from("tmux"),
         };
 
-        utils::parse_command(
-            command.as_os_str(),
-            &args.iter().map(|a| a.as_ref()).collect::<Vec<&OsStr>>(),
-        )
+        utils::parse_command(command.as_os_str(), &args)
     }
 }
 
