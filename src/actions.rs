@@ -40,23 +40,23 @@ pub fn start_project<S: AsRef<OsStr>>(
     force_attach: Option<bool>,
     show_source: bool,
 ) -> Result<(), Box<dyn error::Error>> {
-    let tmux_command = &config.tmux_command;
-
     let project = project::load(config, project_name, force_attach)?;
     project.check()?;
 
     // Build and run tmux commands
     let mut context = Context::new();
-    context.insert("tmux_command", &tmux_command.to_string_lossy());
     context.insert("project", &project);
+
+    let template_comand = project.get_tmux_command_for_template()?;
+    context.insert("tmux_command", &template_comand);
 
     let mut tera = Tera::default();
     tera.register_filter("quote", source::QuoteFilter {});
 
-    let template_content;
-    let template = match project.template {
+    let template_content: String;
+    let template = match &project.template {
         data::ProjectTemplate::Raw(content) => {
-            template_content = content;
+            template_content = content.into();
             template_content.as_str()
         }
         data::ProjectTemplate::File(filename) => {
@@ -74,8 +74,10 @@ pub fn start_project<S: AsRef<OsStr>>(
     if show_source {
         println!("{}", source);
     } else {
+        let (tmux_command, tmux_args) = project.get_tmux_command(vec!["source", "-"])?;
+
         let mut child = Command::new(tmux_command)
-            .args(vec!["source", "-"])
+            .args(tmux_args)
             .stdin(Stdio::piped())
             .spawn()?;
         child
@@ -89,10 +91,10 @@ pub fn start_project<S: AsRef<OsStr>>(
 
         // Attach
         if project.attach {
-            Command::new(tmux_command)
-                .args(vec!["attach-session", "-t", &project.session_name.unwrap()])
-                .spawn()?
-                .wait()?;
+            let session_name = project.session_name.as_ref().unwrap();
+            let (tmux_command, tmux_args) =
+                project.get_tmux_command(vec!["attach-session", "-t", session_name])?;
+            Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
         }
     }
 
@@ -213,8 +215,13 @@ mod project {
 
         let project_yaml = fs::read_to_string(project_path)?;
 
-        Ok(serde_yaml::from_str::<data::Project>(&project_yaml)?
-            .prepare(&project_name.to_string_lossy(), force_attach))
+        Ok(
+            serde_yaml::from_str::<data::Project>(&project_yaml)?.prepare(
+                &config,
+                &project_name.to_string_lossy(),
+                force_attach,
+            ),
+        )
     }
 }
 

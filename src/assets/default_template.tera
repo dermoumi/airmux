@@ -1,4 +1,4 @@
-{%- set cmd = tmux_command | quote -%}
+{%- set cmd = tmux_command -%}
 {%- set session_name = project.session_name | quote -%}
 
 # Check if there's already a session with the same name and create it if not

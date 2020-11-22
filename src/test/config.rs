@@ -1,12 +1,11 @@
 use super::*;
 use app_dirs::AppDirsError;
-use clap::{crate_name, App, Arg};
-use std::env;
+use clap::{App, Arg};
 use std::fs;
 use tempfile::tempdir;
 
-const APP_NAME: &'static str = crate_name!();
-const APP_AUTHOR: &'static str = "dermoumi";
+const APP_NAME: &'static str = "test_app_name";
+const APP_AUTHOR: &'static str = "test_app_author";
 
 fn make_config(
     app_name: Option<&'static str>,
@@ -17,7 +16,7 @@ fn make_config(
     Config {
         app_name: app_name.unwrap_or(APP_NAME),
         app_author: app_author.unwrap_or(APP_AUTHOR),
-        tmux_command: tmux_command.unwrap_or(OsString::from("tmux")),
+        tmux_command: Some(tmux_command.unwrap_or(OsString::from("tmux"))),
         config_dir,
     }
 }
@@ -33,22 +32,7 @@ fn from_args_matches_commands_correctly() {
     let matches = app.get_matches_from(vec!["rmux", "-t", tmux_command, "-c", config_dir]);
 
     let test_config = Config::from_args(APP_NAME, APP_AUTHOR, &matches);
-    assert_eq!(test_config.tmux_command, tmux_command);
-    assert_eq!(test_config.config_dir, Some(PathBuf::from(config_dir)));
-}
-
-#[test]
-fn from_args_matches_handles_missing_tmux_command() {
-    let default_tmux_command = "tmux";
-    let config_dir = "my_config_dir";
-
-    let app = App::new("test_app")
-        .arg(Arg::with_name("tmux_command").short("t").takes_value(true))
-        .arg(Arg::with_name("config_dir").short("c").takes_value(true));
-    let matches = app.get_matches_from(vec!["rmux", "-c", config_dir]);
-
-    let test_config = Config::from_args(APP_NAME, APP_AUTHOR, &matches);
-    assert_eq!(test_config.tmux_command, default_tmux_command);
+    assert_eq!(test_config.tmux_command, Some(tmux_command.into()));
     assert_eq!(test_config.config_dir, Some(PathBuf::from(config_dir)));
 }
 
@@ -77,20 +61,6 @@ fn check_fails_when_author_name_is_empty() {
     assert!(matches!(
         result.err().unwrap().downcast_ref::<Error>(),
         Some(&Error::AppAuthorEmpty {})
-    ));
-}
-
-#[test]
-fn check_fails_when_tmux_command_is_empty() {
-    let temp_dir = tempdir().unwrap();
-    let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, Some(OsString::new()), Some(temp_dir));
-
-    let result = test_config.check();
-    assert!(result.is_err());
-    assert!(matches!(
-        result.err().unwrap().downcast_ref::<Error>(),
-        Some(&Error::TmuxCommandEmpty {})
     ));
 }
 

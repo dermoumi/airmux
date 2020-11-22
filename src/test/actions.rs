@@ -1,23 +1,14 @@
 use super::*;
-use clap::crate_name;
 use std::ffi::OsString;
 use std::os;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-const APP_NAME: &'static str = crate_name!();
-const APP_AUTHOR: &'static str = "dermoumi";
-
-fn make_config(
-    app_name: Option<&'static str>,
-    app_author: Option<&'static str>,
-    tmux_command: Option<OsString>,
-    config_dir: Option<PathBuf>,
-) -> Config {
+fn make_config(tmux_command: Option<OsString>, config_dir: Option<PathBuf>) -> Config {
     Config {
-        app_name: app_name.unwrap_or(APP_NAME),
-        app_author: app_author.unwrap_or(APP_AUTHOR),
-        tmux_command: tmux_command.unwrap_or(OsString::from("tmux")),
+        app_name: "test_app_name",
+        app_author: "test_app_author",
+        tmux_command: Some(tmux_command.unwrap_or(OsString::from("tmux"))),
         config_dir,
     }
 }
@@ -26,7 +17,7 @@ fn make_config(
 fn edit_project_fails_when_editor_is_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
 
     assert!(matches!(
         edit_project(&test_config, "project", "", false)
@@ -42,7 +33,7 @@ fn edit_project_fails_when_editor_is_empty() {
 fn edit_project_succeeds_when_project_file_does_not_exist() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "project";
     let project_path = test_config
         .get_projects_dir(project_name)
@@ -59,7 +50,7 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
 fn edit_project_succeeds_when_project_file_exists() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "project";
 
     // Make sure the file exists
@@ -80,7 +71,7 @@ fn edit_project_succeeds_when_project_file_exists() {
 fn edit_project_creates_sub_directories_as_needed() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "subdir1/subdir2/project";
     let project_path = test_config
         .get_projects_dir(project_name)
@@ -99,7 +90,7 @@ fn edit_project_creates_sub_directories_as_needed() {
 fn edit_project_fails_when_project_path_is_directory() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "project";
     let project_path = test_config
         .get_projects_dir(project_name)
@@ -121,7 +112,7 @@ fn edit_project_fails_when_project_path_is_directory() {
 fn edit_project_project_name_cannot_be_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "";
 
     let result = edit_project(&test_config, project_name, "test", false);
@@ -136,7 +127,7 @@ fn edit_project_project_name_cannot_be_empty() {
 fn remove_project_removes_existing_project() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "project";
 
     // Make sure the file exists
@@ -155,7 +146,7 @@ fn remove_project_removes_existing_project() {
 fn remove_project_removes_parent_subdirectories_if_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "subdir1/subdir2/project";
 
     // Make sure the project's parent directory exists
@@ -180,7 +171,7 @@ fn remove_project_removes_parent_subdirectories_if_empty() {
 fn remove_project_does_not_remove_parent_subdirs_if_not_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project1_name = "subdir1/subdir2/project1";
     let project2_name = "subdir1/project2";
 
@@ -209,7 +200,7 @@ fn remove_project_does_not_remove_parent_subdirs_if_not_empty() {
 fn remove_project_fails_if_project_does_not_exist() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project1_name = "project";
 
     let result = remove_project(&test_config, project1_name, true);
@@ -224,7 +215,7 @@ fn remove_project_fails_if_project_does_not_exist() {
 fn remove_project_project_name_cannot_be_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let project_name = "";
 
     let result = remove_project(&test_config, project_name, true);
@@ -239,7 +230,7 @@ fn remove_project_project_name_cannot_be_empty() {
 fn list_project_does_not_fail() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
-    let test_config = make_config(None, None, None, Some(temp_dir));
+    let test_config = make_config(None, Some(temp_dir));
     let projects_dir = test_config.get_projects_dir("").unwrap();
 
     for n in 0..5 {

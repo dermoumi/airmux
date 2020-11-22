@@ -12,7 +12,6 @@ args:
       long: command
       value_name: COMMAND
       env: RMUX_COMMAND
-      default_value: tmux
   - config_dir:
       global: true
       help: configuration directory to use

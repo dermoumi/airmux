@@ -1,16 +1,21 @@
-use crate::utils::valid_tmux_identifier;
+use crate::config::Config;
+use crate::utils::{parse_command, valid_tmux_identifier};
 
 use serde::de;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
+use shell_words::quote;
 
 use std::error::Error;
+use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Project {
     #[serde(default, alias = "name")]
     pub session_name: Option<String>,
+    #[serde(default)]
+    pub tmux_command: Option<String>,
     #[serde(default, alias = "root", deserialize_with = "Project::de_working_dir")]
     pub working_dir: Option<PathBuf>,
     #[serde(default = "Project::default_window_base_index")]
@@ -30,14 +35,20 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn prepare(self, project_name: &str, force_attach: Option<bool>) -> Self {
+    pub fn prepare(self, config: &Config, project_name: &str, force_attach: Option<bool>) -> Self {
         let mut project = Self {
             session_name: self.session_name.or(Some(project_name.into())),
             ..self
         };
 
         if let Some(attach) = force_attach {
-            project.attach = attach
+            project.attach = attach;
+        }
+
+        if let Some(tmux_command) = &config.tmux_command {
+            project.tmux_command = Some(tmux_command.to_string_lossy().into());
+        } else if project.tmux_command.is_none() {
+            project.tmux_command = Some("tmux".into());
         }
 
         project
@@ -52,6 +63,32 @@ impl Project {
             .iter()
             .map(|w| w.check())
             .collect::<Result<_, _>>()
+    }
+
+    // Makes sure that any arguments passed in tmux_command are instead added as arguments
+    pub fn get_tmux_command<S: AsRef<OsStr>>(
+        &self,
+        args: Vec<S>,
+    ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
+        let command = self.tmux_command.as_ref().ok_or("tmux command not set")?;
+
+        parse_command(
+            &OsString::from(command),
+            &args.iter().map(|a| a.as_ref()).collect::<Vec<&OsStr>>(),
+        )
+    }
+
+    // Sanitizes tmux_command for use in the template file
+    pub fn get_tmux_command_for_template(&self) -> Result<String, Box<dyn Error>> {
+        let (command, args) = self.get_tmux_command(Vec::<&str>::new())?;
+        Ok(format!(
+            "{} {}",
+            command.to_string_lossy(),
+            args.iter()
+                .map(|s| quote(&String::from(s.to_string_lossy())).into())
+                .collect::<Vec<String>>()
+                .join(" ")
+        ))
     }
 
     fn default_window_base_index() -> u32 {
@@ -107,6 +144,7 @@ impl Default for Project {
     fn default() -> Self {
         Self {
             session_name: None,
+            tmux_command: None,
             working_dir: None,
             window_base_index: Self::default_window_base_index(),
             pane_base_index: Self::default_pane_base_index(),

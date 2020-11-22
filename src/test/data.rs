@@ -1,7 +1,18 @@
 use super::*;
 
+fn make_config(tmux_command: Option<OsString>, config_dir: Option<PathBuf>) -> Config {
+    Config {
+        app_name: "test_app_name",
+        app_author: "test_app_author",
+        tmux_command: Some(tmux_command.unwrap_or(OsString::from("tmux"))),
+        config_dir,
+    }
+}
+
 #[test]
 fn project_prepare_replaces_session_name_when_none() {
+    let config = make_config(None, None);
+
     let project = Project {
         working_dir: Some("/".into()),
         ..Project::default()
@@ -9,13 +20,15 @@ fn project_prepare_replaces_session_name_when_none() {
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.session_name, None);
 
-    let project = project.prepare("project", None);
+    let project = project.prepare(&config, "project", None);
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.session_name, Some("project".into()));
 }
 
 #[test]
 fn project_prepare_replaces_attach_when_force_attach_is_set() {
+    let config = make_config(None, None);
+
     let project = Project {
         working_dir: Some("/".into()),
         attach: false,
@@ -24,7 +37,7 @@ fn project_prepare_replaces_attach_when_force_attach_is_set() {
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.attach, false);
 
-    let project = project.prepare("project", Some(true));
+    let project = project.prepare(&config, "project", Some(true));
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.attach, true);
 
@@ -36,7 +49,7 @@ fn project_prepare_replaces_attach_when_force_attach_is_set() {
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.attach, true);
 
-    let project = project.prepare("project", Some(false));
+    let project = project.prepare(&config, "project", Some(false));
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.attach, false);
 }
@@ -63,7 +76,7 @@ fn project_check_fails_on_invalid_session_name() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "session_name cannot contain the following characters: .:"
+        "name \"project:1\" cannot contain the following characters: .: "
     );
 
     let project = Project {
@@ -75,7 +88,7 @@ fn project_check_fails_on_invalid_session_name() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "session_name cannot contain the following characters: .:"
+        "name \"project.1\" cannot contain the following characters: .: "
     );
 }
 
@@ -111,7 +124,7 @@ fn window_check_fails_on_invalid_name() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "window name cannot contain the following characters: .:"
+        "name \"window:1\" cannot contain the following characters: .: "
     );
 
     let window = Window {
@@ -123,7 +136,7 @@ fn window_check_fails_on_invalid_name() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "window name cannot contain the following characters: .:"
+        "name \"window.1\" cannot contain the following characters: .: "
     );
 }
 
