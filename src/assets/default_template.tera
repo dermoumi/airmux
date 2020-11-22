@@ -1,8 +1,11 @@
 {%- set cmd = tmux_command -%}
 {%- set session_name = project.session_name | quote -%}
 
+set-environment -gu __RMUX_SESSION_CREATED
+set-environment -gu __RMUX_SESSION_UPDATED
+
 # Check if there's already a session with the same name and create it if not
-if-shell {{ '! ' ~ cmd ~ ' list-session | grep ' ~ session_name | quote }} {
+if-shell {{ '! ' ~ cmd ~ ' list-session -F ##S | grep -Fx ' ~ session_name | quote }} {
     new-session -s {{ session_name }} -d
 
     # Move existing window to the base index if it's different
@@ -40,6 +43,13 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- set window_name = window.name | quote %}
     rename-window -t {{ target_window }} {{ window_name }}
     {%- endif %}
+
+    {%- for command in window.on_create %}
+    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
+                                             | replace(from="__WINDOW__", to=target_window)
+                                             | quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endfor %}
 
     {%- for pane in window.panes %}
     {%- set pane_index = loop.index - 1 %}
@@ -82,6 +92,14 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     run-shell -t '{{ target_window }}' {{ cmd_pane_env }}
     {%- set target_pane = project.session_name ~ ':' ~ window_index ~ '.#{__RMUX_PANE_' ~ pane_index ~ '}' | quote %}
 
+    {%- for command in pane.on_create %}
+    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
+                                             | replace(from="__WINDOW__", to=target_window)
+                                             | replace(from="__PANE__", to=target_pane)
+                                             | quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endfor %}
+
     {%- for command in pane.commands %}
     {%- set cmd_quoted = command | quote %}
     {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
@@ -90,9 +108,9 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
 
     {%- for command in pane.post_create %}
     {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
-                                            | replace(from="__WINDOW__", to=target_window)
-                                            | replace(from="__PANE__", to=target_pane)
-                                            | quote %}
+                                             | replace(from="__WINDOW__", to=target_window)
+                                             | replace(from="__PANE__", to=target_pane)
+                                             | quote %}
     run-shell {{ cmd_quoted }}
     {%- endfor %}
     {%- endfor %}
@@ -105,6 +123,13 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- for pane in window.panes %}
     {%- set pane_index = loop.index - 1 + project.pane_base_index %}
     {%- set cmd_pane_env =  cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
+    {%- endfor %}
+
+    {%- for command in window.post_create %}
+    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
+                                             | replace(from="__WINDOW__", to=target_window)
+                                             | quote %}
+    run-shell {{ cmd_quoted }}
     {%- endfor %}
 
     set-environment -g __RMUX_SESSION_UPDATED 1

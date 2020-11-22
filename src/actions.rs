@@ -46,7 +46,7 @@ pub fn start_project<S: AsRef<OsStr>>(
     force_attach: Option<bool>,
     show_source: bool,
 ) -> Result<(), Box<dyn error::Error>> {
-    let project = project::load(config, project_name, force_attach)?;
+    let project = project::load(config, &project_name, force_attach)?;
     project.check()?;
 
     // Build and run tmux commands
@@ -80,6 +80,17 @@ pub fn start_project<S: AsRef<OsStr>>(
     if show_source {
         println!("{}", source);
     } else {
+        // Create dummy tmux session to make sure the tmux server is up and running
+        let (tmux_command, tmux_args) = project.get_tmux_command(vec![
+            OsString::from("new-session"),
+            OsString::from("-s"),
+            OsString::from("__rmux_dummy_session_"),
+            OsString::from("-d"),
+        ])?;
+        let mut dummy_command = Command::new(tmux_command);
+        dummy_command.args(tmux_args).output()?;
+
+        // Source our tmux config file
         let (tmux_command, tmux_args) =
             project.get_tmux_command(vec![OsString::from("source"), OsString::from("-")])?;
 
@@ -100,7 +111,27 @@ pub fn start_project<S: AsRef<OsStr>>(
             .write_all(source.as_bytes())?;
 
         // Wait until tmux completely finished processing input
-        child.wait()?;
+        let status = child.wait()?;
+
+        // Remove dummy session
+        let (tmux_command, tmux_args) = project.get_tmux_command(vec![
+            OsString::from("kill-session"),
+            OsString::from("-t"),
+            OsString::from("__rmux_dummy_session_"),
+        ])?;
+        let mut dummy_command = Command::new(tmux_command);
+        let _ = dummy_command.args(tmux_args).output();
+
+        // Check tmux exit code
+        ensure!(
+            status.success(),
+            TmuxFailed {
+                exit_code: status.code().unwrap_or(-1)
+            }
+        );
+
+        // Print success message
+        println!("Project {:?} started succesfully", project_name.as_ref());
 
         // Attach
         if project.attach {
@@ -121,7 +152,7 @@ pub fn kill_project<S: AsRef<OsStr>>(
     config: &Config,
     project_name: S,
 ) -> Result<(), Box<dyn error::Error>> {
-    let project = project::load(config, project_name, None)?;
+    let project = project::load(config, &project_name, None)?;
     project.check()?;
 
     let session_name = project
@@ -145,7 +176,7 @@ pub fn kill_project<S: AsRef<OsStr>>(
         }
     );
 
-    println!("session {:?} killed succesfully", session_name);
+    println!("Project {:?} killed successfully.", project_name.as_ref());
 
     Ok(())
 }
@@ -277,7 +308,6 @@ mod project {
     }
 
     fn env_context(s: &str) -> Result<Option<String>, Box<dyn error::Error>> {
-        println!("AAA {:?}", s);
         Ok(env::var(s).ok().or(Some("".into())))
     }
 }

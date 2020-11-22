@@ -366,6 +366,10 @@ pub struct Window {
     #[serde(default)]
     pub layout: Option<String>,
     #[serde(default)]
+    pub on_create: Vec<String>,
+    #[serde(default)]
+    pub post_create: Vec<String>,
+    #[serde(default)]
     pub panes: Vec<Pane>,
 }
 
@@ -398,10 +402,8 @@ impl Window {
         match val.as_mapping() {
             Some(map) => Window::from_mapping(map),
             None => Ok(Self {
-                name: None,
-                working_dir: None,
                 panes: Self::de_panes_from_val(val)?,
-                layout: None,
+                ..Self::default()
             }),
         }
     }
@@ -429,9 +431,8 @@ impl Window {
             Some(map) => Self::de_windef_from_mapping(name, map),
             None => Ok(Self {
                 name,
-                working_dir: None,
                 panes: Self::de_panes_from_val(definition)?,
-                layout: None,
+                ..Self::default()
             }),
         }
     }
@@ -448,6 +449,8 @@ impl Window {
                     .map_or_else(|| definition.get(&"root".into()), Option::from),
             )?,
             layout: Self::de_layout(definition.get(&"layout".into()))?,
+            on_create: Self::de_commands(definition.get(&"on_create".into()))?,
+            post_create: Self::de_commands(definition.get(&"post_create".into()))?,
             panes: Self::de_panes(definition.get(&"panes".into()))?,
         })
     }
@@ -470,6 +473,27 @@ impl Window {
                 _ => Err("expected layout to be a string")?,
             }),
             None => None,
+        })
+    }
+
+    fn de_commands(val: Option<&Value>) -> Result<Vec<String>, Box<dyn Error>> {
+        match val {
+            Some(x) => Self::de_commands_from_val(x),
+            None => Ok(vec![]),
+        }
+    }
+
+    fn de_commands_from_val(val: &Value) -> Result<Vec<String>, Box<dyn Error>> {
+        Ok(match val {
+            s if s.is_sequence() => s
+                .as_sequence()
+                .unwrap()
+                .into_iter()
+                .map(|x| serde_yaml::from_value::<String>(x.clone()).map(|s| s.replace("#", "##")))
+                .collect::<Result<Vec<_>, _>>()?,
+            s if s.is_string() => vec![s.as_str().unwrap().replace("#", "##")],
+            n if n.is_null() => vec![],
+            _ => Err("expected commands to be null, a string or a list of strings")?,
         })
     }
 
@@ -511,6 +535,8 @@ impl Default for Window {
             name: None,
             working_dir: None,
             layout: None,
+            on_create: vec![],
+            post_create: vec![],
             panes: vec![Pane::default()],
         }
     }
@@ -526,6 +552,8 @@ pub struct Pane {
     pub split_from: Option<usize>,
     #[serde(default)]
     pub split_size: Option<String>,
+    #[serde(default)]
+    pub on_create: Vec<String>,
     #[serde(default)]
     pub post_create: Vec<String>,
     #[serde(default)]
@@ -556,6 +584,7 @@ impl Pane {
             split: Self::de_split(map.get(&"split".into()))?,
             split_from: Self::de_split_from(map.get(&"split_from".into()))?,
             split_size: Self::de_split_size(map.get(&"split_size".into()))?,
+            on_create: Self::de_commands(map.get(&"on_create".into()))?,
             post_create: Self::de_commands(map.get(&"post_create".into()))?,
             commands: Self::de_commands(
                 map.get(&"commands".into())
@@ -624,9 +653,9 @@ impl Pane {
                 .as_sequence()
                 .unwrap()
                 .into_iter()
-                .map(|x| serde_yaml::from_value(x.clone()))
+                .map(|x| serde_yaml::from_value::<String>(x.clone()).map(|s| s.replace("#", "##")))
                 .collect::<Result<Vec<_>, _>>()?,
-            s if s.is_string() => vec![s.as_str().unwrap().into()],
+            s if s.is_string() => vec![s.as_str().unwrap().replace("#", "##")],
             n if n.is_null() => vec![],
             _ => Err("expected commands to be null, a string or a list of strings")?,
         })

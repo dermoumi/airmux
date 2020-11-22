@@ -4,10 +4,12 @@
 
 # Session name. If not specified defaults to project name. Should not contain `:` or `.`
 # Default: project name
+# Alias: session_name
 name: "test"
 
 # Root directory for windows and panes. Can be overridden for each window or panel.
 # Default: current working directory
+# Alias: working_dir
 root: ~
 
 # Attach the project after creation. Can be overridden with --attach and --no-attach arguments
@@ -22,6 +24,7 @@ tmux_command:
 # Tmux socket name, then again you could pass options directly to tmux_command
 # This is appended to tmux_command, --command flag can't override this
 # Optional
+# Alias: tmux_socket
 socket_name:
 
 # Tmux options, this is only here to make transition from tmuxinator easier
@@ -49,6 +52,7 @@ windows:
   - window1:
       # Root directory for all child panes
       # Default to parent session's
+      # Alias: working_dir
       root: /home/
       # A list of 3 panes
       panes:
@@ -70,6 +74,7 @@ windows:
           # Default: 50%
           split_size: 20
           # Shell commands to run in the pane
+          # Alias: command
           commands:
             - exec fish -C 'echo hello'
             - pwd

@@ -181,14 +181,14 @@ fn window_deserializes_working_dir_null_as_home() {
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(project.working_dir, Some("~".into()));
+    assert_eq!(project.working_dir, Some(tilde("~").to_string().into()));
 
     let yaml = r#"
         root: ~
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(project.working_dir, Some("~".into()));
+    assert_eq!(project.working_dir, Some(tilde("~").to_string().into()));
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn window_def_deserializes_working_dir_null_as_home() {
 
     let window: Window = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(window.name, Some("win1".into()));
-    assert_eq!(window.working_dir, Some("~".into()));
+    assert_eq!(window.working_dir, Some(tilde("~").to_string().into()));
 
     let yaml = r#"
         win1:
@@ -392,7 +392,7 @@ fn window_def_deserializes_working_dir_null_as_home() {
 
     let window: Window = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(window.name, Some("win1".into()));
-    assert_eq!(window.working_dir, Some("~".into()));
+    assert_eq!(window.working_dir, Some(tilde("~").to_string().into()));
 }
 
 #[test]
@@ -584,14 +584,14 @@ fn pane_deserializes_working_dir_null_as_home() {
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(pane.working_dir, Some("~".into()));
+    assert_eq!(pane.working_dir, Some(tilde("~").to_string().into()));
 
     let yaml = r#"
         root: ~
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(pane.working_dir, Some("~".into()));
+    assert_eq!(pane.working_dir, Some(tilde("~").to_string().into()));
 }
 
 #[test]
