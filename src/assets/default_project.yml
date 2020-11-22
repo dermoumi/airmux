@@ -1,9 +1,84 @@
-# Name of the sessions
-name: "__PROJECT_NAME__"
+# All fields are optional but at least one is required
+
+# Session name. If not specified defaults to project name. Should not contain `:` or `.`
+# Default: project name
+name: "test"
+
+# Root directory for windows and panes. Can be overridden for each window or panel.
+# Default: current working directory
+root: "~/"
+
+# Attach the project after creation. Can be overridden with --attach and --no-attach arguments
+# Default: true
+attach: true
 
 # List of windows
+# Default: a single nameless window
 windows:
-  - shell:
-      root: ~/
+  - window1:
+      # Root directory for all child panes
+      # Default to parent session's
+      root: /home/
+      # A list of 3 panes
       panes:
-        - main:
+        # Empty pane with no commands
+        - commands: []
+        # You can also keep it empty, pass an empty array, null or ~
+        - []
+        # 3rd pane with `/` as current working directory
+        # Defaults to parent window's
+        - root: /
+          # Splits vertically from the previous pane...
+          # valid values: v, h, vertical, horizontal
+          # Default: horizontal
+          split: vertical
+          # ...or from pane at index 0 (this list's indexes, not tmux pane indexes)
+          # Default: previous pane
+          split_from: 0
+          # set its size at 20 columns
+          # Default: 50%
+          split_size: 20
+          # Shell commands to run in the pane
+          commands:
+            - exec fish -C 'echo hello'
+            - pwd
+          # _tmux_ commands to run after the pane is ready
+          post_create:
+            # Send Ctrl+L to clear the screen.
+            # __SESSION__, __WINDOW__, __PANE__ are substiuted with session, window and pane identifiers respectively
+            - send-keys -t __PANE__ C-l
+  # You can use null or ~ to use the default window name
+  - ~:
+      # You can choose one of the 5 default layouts:
+      # even-horizontal, even-vertical, main-horizontal, main-vertical, or tiled
+      layout: main-vertical
+      # Short form for panes, with a single command each:
+      panes:
+        - echo 'pane1'
+        - echo 'pane2'
+        - echo 'pane3'
+        - echo 'pane4'
+        - echo 'pane5'
+  # A window with a custom layout
+  - custom_window:
+      # You can copy the layout from the `tmux list-windows` command
+      layout: a72b,121x57,0,0[121x40,0,0{50x40,0,0,377,70x40,51,0[70x20,51,0,382,70x19,51,21,383]},121x16,0,41{79x16,0,41,378,41x16,80,41,380}]
+      panes:
+        - echo 'pane1'
+        - echo 'pane2'
+        - echo 'pane3'
+        - echo 'pane4'
+        - commands:
+          - echo 'pane5 cmd1'
+          - echo 'pand5 cmd2'
+  # A window with no options and just panes
+  - window_of_panes:
+    - echo 'Short Change Pane'
+    -
+    - split: vertical
+      split_size: 25%
+    - echo 'Final Pane VIII Remake'
+  # A nameless window with a single command
+  - echo henlo
+  # An empty nameless window
+  -
