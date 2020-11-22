@@ -10,7 +10,7 @@ if-shell {{ '! ' ~ cmd ~ ' list-session | grep ' ~ session_name | quote }} {
     {%- set dst_window = project.session_name ~ ':999999' | quote %}
     move-window -s {{ src_window }} -t {{ dst_window }}
 
-    set-environment -g __RMUX_FRESH_SESSION 1
+    set-environment -g __RMUX_SESSION_CREATED 1
 }
 
 # Set base window and pane indices
@@ -100,17 +100,27 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- set pane_index = loop.index - 1 + project.pane_base_index %}
     {%- set cmd_pane_env =  cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
     {%- endfor %}
+
+    set-environment -g __RMUX_SESSION_UPDATED 1
 }
 
 {% endfor -%}
 
 # If the session was freshly created, remove the original window
-if-shell -F '#{__RMUX_FRESH_SESSION}' {
+if-shell -F '#{__RMUX_SESSION_CREATED}' {
     {%- set initial_window = project.session_name ~ ':999999' | quote %}
     kill-window -t {{ initial_window }}
 
     {%- set first_window = project.session_name ~ ':^' | quote %}
     select-window -t {{ first_window }}
-
-    set-environment -gu __RMUX_FRESH_SESSION
 }
+
+# Show indicator message
+{%- set created_msg = 'created new session: ' ~ session_name %}
+{%- set updated_msg = 'updated session: ' ~ session_name %}
+{%- set nothing_msg = 'no changes to existing session: ' ~ session_name %}
+display -p "#{?__RMUX_SESSION_CREATED,{{ created_msg }},#{?__RMUX_SESSION_UPDATED,{{ updated_msg }},{{ nothing_msg }}}}"
+
+# Clear variables
+set-environment -gu __RMUX_SESSION_CREATED
+set-environment -gu __RMUX_SESSION_UPDATED
