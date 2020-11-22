@@ -68,10 +68,12 @@ impl Project {
     }
 
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
+        // Make sure session name is valid
         if let Some(session_name) = &self.session_name {
             valid_tmux_identifier(session_name)?;
         }
 
+        // Make sure start up window exists
         match &self.startup_window {
             StartupWindow::Index(index) => {
                 if *index >= self.window_base_index + self.windows.len()
@@ -102,6 +104,14 @@ impl Project {
             _ => {}
         }
 
+        // Make sure working_dir exists and is a directory
+        if let Some(path) = &self.working_dir {
+            if !path.is_dir() {
+                Err(format!("session working_dir {:?} does not exist", path))?;
+            }
+        }
+
+        // Run checks for each window
         self.windows
             .iter()
             .map(|w| w.check())
@@ -375,10 +385,12 @@ pub struct Window {
 
 impl Window {
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
+        // Make sure the pane's
         if let Some(name) = &self.name {
             valid_tmux_identifier(name)?;
         }
 
+        // Check that split_from for each pane points to an existing pane
         for pane in &self.panes {
             pane.check()?;
 
@@ -392,6 +404,14 @@ impl Window {
             }
         }
 
+        // Make sure working_dir exists and is a directory
+        if let Some(path) = &self.working_dir {
+            if !path.is_dir() {
+                Err(format!("window working_dir {:?} does not exist", path))?;
+            }
+        }
+
+        // Run check for each pane
         self.panes
             .iter()
             .map(|p| p.check())
@@ -562,6 +582,13 @@ pub struct Pane {
 
 impl Pane {
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
+        // Make sure working_dir exists and is a directory
+        if let Some(path) = &self.working_dir {
+            if !path.is_dir() {
+                Err(format!("pane working_dir {:?} does not exist", path))?;
+            }
+        }
+
         Ok(())
     }
 

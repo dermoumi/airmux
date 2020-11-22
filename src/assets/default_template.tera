@@ -5,7 +5,7 @@ set-environment -gu __RMUX_SESSION_CREATED
 set-environment -gu __RMUX_SESSION_UPDATED
 
 # Check if there's already a session with the same name and create it if not
-if-shell {{ '! ' ~ cmd ~ ' list-session -F ##S | grep -Fx ' ~ session_name | quote }} {
+if-shell {{ '! ' ~ cmd ~ ' list-session -F "##S" | grep -Fx ' ~ session_name | quote }} {
     new-session -s {{ session_name }} -d
 
     # Move existing window to the base index if it's different
