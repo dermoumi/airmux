@@ -573,6 +573,8 @@ pub struct Pane {
     #[serde(default)]
     pub split_size: Option<String>,
     #[serde(default)]
+    pub clear: bool,
+    #[serde(default)]
     pub on_create: Vec<String>,
     #[serde(default)]
     pub post_create: Vec<String>,
@@ -611,6 +613,7 @@ impl Pane {
             split: Self::de_split(map.get(&"split".into()))?,
             split_from: Self::de_split_from(map.get(&"split_from".into()))?,
             split_size: Self::de_split_size(map.get(&"split_size".into()))?,
+            clear: Self::de_clear(map.get(&"clear".into()))?,
             on_create: Self::de_commands(map.get(&"on_create".into()))?,
             post_create: Self::de_commands(map.get(&"post_create".into()))?,
             commands: Self::de_commands(
@@ -664,6 +667,16 @@ impl Pane {
                 _ => Err("expected split_size to be either a positive integer or a string")?,
             }),
             None => None,
+        })
+    }
+
+    fn de_clear(val: Option<&Value>) -> Result<bool, Box<dyn Error>> {
+        Ok(match val {
+            Some(x) => match x.as_bool() {
+                Some(x) => x,
+                None => Err("expected clear to be either a boolean")?,
+            },
+            None => false,
         })
     }
 

@@ -113,6 +113,12 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
                                              | quote %}
     run-shell {{ cmd_quoted }}
     {%- endfor %}
+
+    {%- if pane.clear %}
+    # Clear pane
+    {%- set cmd_quoted = cmd ~ ' send-keys -t ' ~ target_pane ~ ' C-l'| quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endif %}
     {%- endfor %}
 
     {%- if window.layout %}
@@ -122,7 +128,8 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
 
     {%- for pane in window.panes %}
     {%- set pane_index = loop.index - 1 + project.pane_base_index %}
-    {%- set cmd_pane_env =  cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
+    {%- set cmd_pane_env = cmd ~ ' set-environment -gu __RMUX_PANE_' ~ pane_index | quote %}
+    run-shell {{ cmd_pane_env }}
     {%- endfor %}
 
     {%- for command in window.post_create %}
@@ -131,6 +138,9 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
                                              | quote %}
     run-shell {{ cmd_quoted }}
     {%- endfor %}
+
+    {% set startup_pane = project.session_name ~ ':' ~ window_index ~ '.' ~ project.pane_base_index | quote -%}
+    select-pane -t {{ startup_pane }}
 
     set-environment -g __RMUX_SESSION_UPDATED 1
 }
@@ -144,13 +154,10 @@ if-shell -F '#{__RMUX_SESSION_CREATED}' {
 
     {% if project.startup_window or project.startup_window == 0 -%}
     {% set startup_window = project.session_name ~ ':' ~ project.startup_window | quote -%}
-    {% set startup_pane = project.session_name ~ ':' ~ project.startup_window ~ '.' ~ project.pane_base_index | quote -%}
     {% else -%}
     {% set startup_window = project.session_name ~ ':^' | quote -%}
-    {% set startup_pane = project.session_name ~ ':^.' ~ project.pane_base_index | quote -%}
     {% endif -%}
     select-window -t {{ startup_window }}
-    select-pane -t {{ startup_pane }}
 }
 
 # Show indicator message
