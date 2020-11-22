@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::utils::{parse_command, valid_tmux_identifier};
 
-use serde::de;
+use serde::{de, ser};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use shell_words::{quote, split};
@@ -22,10 +22,18 @@ pub struct Project {
     pub tmux_socket: Option<String>,
     #[serde(default, alias = "root", deserialize_with = "Project::de_working_dir")]
     pub working_dir: Option<PathBuf>,
-    #[serde(default = "Project::default_window_base_index")]
-    pub window_base_index: u32,
-    #[serde(default = "Project::default_pane_base_index")]
-    pub pane_base_index: u32,
+    #[serde(
+        default = "Project::default_window_base_index",
+        deserialize_with = "Project::de_window_base_index"
+    )]
+    pub window_base_index: usize,
+    #[serde(
+        default = "Project::default_pane_base_index",
+        deserialize_with = "Project::de_pane_base_index"
+    )]
+    pub pane_base_index: usize,
+    #[serde(default)]
+    pub startup_window: StartupWindow,
     #[serde(default)]
     pub template: ProjectTemplate,
     #[serde(default = "Project::default_attach")]
@@ -61,6 +69,36 @@ impl Project {
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
         if let Some(session_name) = &self.session_name {
             valid_tmux_identifier(session_name)?;
+        }
+
+        match &self.startup_window {
+            StartupWindow::Index(index) => {
+                if *index >= self.window_base_index + self.windows.len()
+                    || *index < self.window_base_index
+                {
+                    Err(format!(
+                        "startup_window: there is no window with index {}",
+                        index
+                    ))?;
+                }
+            }
+            StartupWindow::Name(name) => {
+                if self
+                    .windows
+                    .iter()
+                    .find(|w| match &w.name {
+                        Some(window_name) => window_name == name,
+                        _ => false,
+                    })
+                    .is_none()
+                {
+                    Err(format!(
+                        "startup_window: there is no window with name {}",
+                        name
+                    ))?;
+                }
+            }
+            _ => {}
         }
 
         self.windows
@@ -110,11 +148,11 @@ impl Project {
         ))
     }
 
-    fn default_window_base_index() -> u32 {
+    fn default_window_base_index() -> usize {
         1
     }
 
-    fn default_pane_base_index() -> u32 {
+    fn default_pane_base_index() -> usize {
         1
     }
 
@@ -136,6 +174,34 @@ impl Project {
             p if p.is_string() => Ok(Some(p.as_str().unwrap().into())),
             p if p.is_null() => Ok(Some("~".into())),
             _ => Err("expected working_dir to be a string or null"),
+        }
+        .map_err(de::Error::custom)
+    }
+
+    fn de_window_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let val: Value = de::Deserialize::deserialize(deserializer)?;
+
+        match val {
+            p if p.is_u64() => Ok(p.as_u64().unwrap() as usize),
+            p if p.is_null() => Ok(Self::default_window_base_index()),
+            _ => Err("expected window_base_index to be a number or null"),
+        }
+        .map_err(de::Error::custom)
+    }
+
+    fn de_pane_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let val: Value = de::Deserialize::deserialize(deserializer)?;
+
+        match val {
+            p if p.is_u64() => Ok(p.as_u64().unwrap() as usize),
+            p if p.is_null() => Ok(Self::default_pane_base_index()),
+            _ => Err("expected pane_base_index to be a number or null"),
         }
         .map_err(de::Error::custom)
     }
@@ -169,6 +235,7 @@ impl Default for Project {
             working_dir: None,
             window_base_index: Self::default_window_base_index(),
             pane_base_index: Self::default_pane_base_index(),
+            startup_window: StartupWindow::default(),
             template: ProjectTemplate::default(),
             attach: true,
             windows: vec![Window::default()],
@@ -228,6 +295,66 @@ impl<'de> Deserialize<'de> for ProjectTemplate {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum StartupWindow {
+    Name(String),
+    Index(usize),
+    Default,
+}
+
+impl StartupWindow {
+    fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
+        match val {
+            v if v.is_null() => Ok(Self::Default),
+            v if v.is_string() => Ok(v.as_str().unwrap().into()),
+            v if v.is_number() => Ok((v.as_u64().unwrap() as usize).into()),
+            v => Err(format!("invalid value for field 'template': {:?}", v).into()),
+        }
+    }
+}
+
+impl Default for StartupWindow {
+    fn default() -> Self {
+        StartupWindow::Default
+    }
+}
+
+impl From<&str> for StartupWindow {
+    fn from(name: &str) -> Self {
+        Self::Name(name.into())
+    }
+}
+
+impl From<usize> for StartupWindow {
+    fn from(name: usize) -> Self {
+        Self::Index(name)
+    }
+}
+
+impl<'de> Deserialize<'de> for StartupWindow {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let val: Value = de::Deserialize::deserialize(deserializer)?;
+
+        Self::from_value(&val).map_err(de::Error::custom)
+    }
+}
+
+impl ser::Serialize for StartupWindow {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        match self {
+            Self::Name(name) => serializer.serialize_str(name),
+            Self::Index(index) => serializer.serialize_u64(*index as u64),
+            _ => serializer.serialize_none(),
+        }
+    }
+}
+
 #[derive(Serialize, Debug, PartialEq)]
 pub struct Window {
     #[serde(default)]
@@ -253,7 +380,7 @@ impl Window {
             if let Some(split_from) = pane.split_from {
                 if split_from >= self.panes.len() {
                     Err(format!(
-                        "split_from: there is no pane with index {}",
+                        "split_from: there is no pane with index {} (pane indexes always start at 0)",
                         split_from
                     ))?;
                 }

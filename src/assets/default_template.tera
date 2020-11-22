@@ -13,7 +13,7 @@ if-shell {{ '! ' ~ cmd ~ ' list-session | grep ' ~ session_name | quote }} {
     set-environment -g __RMUX_SESSION_CREATED 1
 }
 
-# Set base window and pane indices
+# Set base window and pane indexes
 set -s -t {{ session_name }} base-index {{ project.window_base_index }}
 set -s -t {{ session_name }} pane-base-index {{ project.pane_base_index }}
 
@@ -111,8 +111,15 @@ if-shell -F '#{__RMUX_SESSION_CREATED}' {
     {%- set initial_window = project.session_name ~ ':999999' | quote %}
     kill-window -t {{ initial_window }}
 
-    {%- set first_window = project.session_name ~ ':^' | quote %}
-    select-window -t {{ first_window }}
+    {% if project.startup_window or project.startup_window == 0 -%}
+    {% set startup_window = project.session_name ~ ':' ~ project.startup_window | quote -%}
+    {% set startup_pane = project.session_name ~ ':' ~ project.startup_window ~ '.' ~ project.pane_base_index | quote -%}
+    {% else -%}
+    {% set startup_window = project.session_name ~ ':^' | quote -%}
+    {% set startup_pane = project.session_name ~ ':^.' ~ project.pane_base_index | quote -%}
+    {% endif -%}
+    select-window -t {{ startup_window }}
+    select-pane -t {{ startup_pane }}
 }
 
 # Show indicator message

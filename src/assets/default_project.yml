@@ -27,6 +27,20 @@ socket_name:
 # Optional
 tmux_options:
 
+# All window indexes start at this number
+# Default: 1
+window_base_index:
+
+# All panel indexes start at this number
+# Note: panes' split_from value does not use tmux indexes and is inaffected by this value
+# Default: 1
+pane_base_index:
+
+# Start up window. The actual tmux index, starting with window_base_index value.
+# Can also be a name, in which case will use the first window with that name if it exists
+# Default: First window
+startup_window:
+
 # List of windows
 # Default: a single nameless window
 windows:
