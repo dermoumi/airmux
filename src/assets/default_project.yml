@@ -12,6 +12,21 @@ root: "~/"
 # Default: true
 attach: true
 
+# Tmux command to use, can be overridden with --command
+# You can add any flags and options here
+# Default: tmux
+tmux_command:
+
+# Tmux socket name, then again you could pass options directly to tmux_command
+# This is appended to tmux_command, --command flag can't override this
+# Optional
+socket_name:
+
+# Tmux options, this is only here to make transition from tmuxinator easier
+# This is appended to tmux_command and socket_name, --command flag can't override this
+# Optional
+tmux_options:
+
 # List of windows
 # Default: a single nameless window
 windows:

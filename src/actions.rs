@@ -31,6 +31,10 @@ pub enum Error {
     ProjectFileIsADirectory { path: PathBuf },
     #[snafu(display("cannot pipe to tmux command"))]
     CannotPipeToTmux,
+    #[snafu(display("session name is not set. please file a bug report."))]
+    SessionNameNotSet,
+    #[snafu(display("tmux failed with exit code: {}", exit_code))]
+    TmuxFailed { exit_code: i32 },
 }
 
 pub fn start_project<S: AsRef<OsStr>>(
@@ -101,6 +105,39 @@ pub fn start_project<S: AsRef<OsStr>>(
             Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
         }
     }
+
+    Ok(())
+}
+
+pub fn kill_project<S: AsRef<OsStr>>(
+    config: &Config,
+    project_name: S,
+) -> Result<(), Box<dyn error::Error>> {
+    let project = project::load(config, project_name, None)?;
+    project.check()?;
+
+    let session_name = project
+        .session_name
+        .to_owned()
+        .ok_or(/* should never happen */ Error::SessionNameNotSet {})?;
+
+    // Run tmux
+    let (tmux_command, tmux_args) = project.get_tmux_command(vec![
+        OsString::from("kill-session"),
+        OsString::from("-t"),
+        OsString::from(session_name.to_owned()),
+    ])?;
+
+    let status = Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
+
+    ensure!(
+        status.success(),
+        TmuxFailed {
+            exit_code: status.code().unwrap_or(-1)
+        }
+    );
+
+    println!("session {:?} killed succesfully", session_name);
 
     Ok(())
 }

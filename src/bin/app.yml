@@ -47,7 +47,7 @@ subcommands:
             conflicts_with: no_attach
         - no_attach:
             help: don't automatically attach the session
-            short: "n"
+            short: A
             long: no-attach
         - source:
             help: only print tmux command source without actually running tmux
@@ -83,7 +83,7 @@ subcommands:
             env: EDITOR
         - no_check:
             help: do not check the project file
-            short: "n"
+            short: C
             long: no-check
   - remove:
       settings:
