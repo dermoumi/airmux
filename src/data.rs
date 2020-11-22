@@ -247,6 +247,19 @@ impl Window {
             valid_tmux_identifier(name)?;
         }
 
+        for pane in &self.panes {
+            pane.check()?;
+
+            if let Some(split_from) = pane.split_from {
+                if split_from >= self.panes.len() {
+                    Err(format!(
+                        "split_from: there is no pane with index {}",
+                        split_from
+                    ))?;
+                }
+            }
+        }
+
         self.panes
             .iter()
             .map(|p| p.check())
@@ -382,7 +395,7 @@ pub struct Pane {
     #[serde(default)]
     pub split: Option<PaneSplit>,
     #[serde(default)]
-    pub split_from: Option<u64>,
+    pub split_from: Option<usize>,
     #[serde(default)]
     pub split_size: Option<String>,
     #[serde(default)]
@@ -449,10 +462,10 @@ impl Pane {
         })
     }
 
-    fn de_split_from(val: Option<&Value>) -> Result<Option<u64>, Box<dyn Error>> {
+    fn de_split_from(val: Option<&Value>) -> Result<Option<usize>, Box<dyn Error>> {
         Ok(match val {
             Some(x) => Some(match x.as_u64() {
-                Some(x) => x.into(),
+                Some(x) => x as usize,
                 None => Err("expected split_from to be a positive integer")?,
             }),
             None => None,
