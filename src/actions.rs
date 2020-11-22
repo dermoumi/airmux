@@ -40,18 +40,10 @@ pub fn start_project<S: AsRef<OsStr>>(
     force_attach: Option<bool>,
     show_source: bool,
 ) -> Result<(), Box<dyn error::Error>> {
-    let project_name = project_name.as_ref();
-    ensure!(!project_name.is_empty(), ProjectNameEmpty {});
-
     let tmux_command = &config.tmux_command;
 
-    let projects_dir = config.get_projects_dir("")?;
-    let project_path = projects_dir.join(project_name).with_extension("yml");
-    ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
-
-    let project_yaml = fs::read_to_string(project_path)?;
-    let project = serde_yaml::from_str::<data::Project>(&project_yaml)?
-        .prepare(&project_name.to_string_lossy(), force_attach);
+    let project = project::load(config, project_name, force_attach)?;
+    project.check()?;
 
     // Build and run tmux commands
     let mut context = Context::new();
@@ -140,7 +132,10 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
 
     if !no_check {
         child.wait()?;
-        // TODO: Perform a yaml check on the file
+
+        // Perform a check on the project
+        let project = project::load(config, project_name, None)?;
+        project.check()?;
     }
 
     Ok(())
@@ -199,6 +194,28 @@ pub fn list_projects(config: &Config) -> Result<(), Box<dyn error::Error>> {
     );
 
     Ok(())
+}
+
+mod project {
+    use super::*;
+
+    pub fn load<S: AsRef<OsStr>>(
+        config: &Config,
+        project_name: S,
+        force_attach: Option<bool>,
+    ) -> Result<data::Project, Box<dyn error::Error>> {
+        let project_name = project_name.as_ref();
+        ensure!(!project_name.is_empty(), ProjectNameEmpty {});
+
+        let projects_dir = config.get_projects_dir("")?;
+        let project_path = projects_dir.join(project_name).with_extension("yml");
+        ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
+
+        let project_yaml = fs::read_to_string(project_path)?;
+
+        Ok(serde_yaml::from_str::<data::Project>(&project_yaml)?
+            .prepare(&project_name.to_string_lossy(), force_attach))
+    }
 }
 
 mod source {

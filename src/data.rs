@@ -1,3 +1,5 @@
+use crate::utils::valid_tmux_identifier;
+
 use serde::de;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -43,9 +45,7 @@ impl Project {
 
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
         if let Some(session_name) = &self.session_name {
-            if session_name.find(&['.', ':'][..]).is_some() {
-                Err("session_name cannot contain the following characters: .:")?;
-            }
+            valid_tmux_identifier(session_name)?;
         }
 
         self.windows
@@ -185,9 +185,7 @@ pub struct Window {
 impl Window {
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
         if let Some(name) = &self.name {
-            if name.find(&['.', ':'][..]).is_some() {
-                Err("window name cannot contain the following characters: .:")?;
-            }
+            valid_tmux_identifier(name)?;
         }
 
         self.panes

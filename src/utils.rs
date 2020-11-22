@@ -13,6 +13,21 @@ pub enum Error {
     ProjectNameAbsolutePath { project_name: OsString }, // nocov
     #[snafu(display("Command cannot be empty"))]
     EmptyCommand {},
+    #[snafu(display("name {:?} cannot contain the following characters: .: ", identifier))]
+    TmuxIdentifierIllegalCharacters { identifier: String },
+    #[snafu(display("name cannot be empty"))]
+    TmuxIdentifierEmpty {},
+}
+
+pub fn valid_tmux_identifier(identifier: &str) -> Result<(), Box<dyn error::Error>> {
+    ensure!(
+        identifier.find(&['.', ':'][..]).is_none(),
+        TmuxIdentifierIllegalCharacters { identifier }
+    );
+
+    ensure!(!identifier.is_empty(), TmuxIdentifierEmpty {});
+
+    Ok(())
 }
 
 pub fn get_project_namespace<S: AsRef<OsStr>>(
