@@ -5,11 +5,11 @@ use serde_yaml::Value;
 use std::error::Error;
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Project {
     #[serde(default, alias = "name")]
     pub session_name: Option<String>,
-    #[serde(alias = "root")]
+    #[serde(default, alias = "root", deserialize_with = "Project::de_working_dir")]
     pub working_dir: Option<PathBuf>,
     #[serde(default = "Project::default_window_base_index")]
     pub window_base_index: u32,
@@ -17,26 +17,94 @@ pub struct Project {
     pub pane_base_index: u32,
     #[serde(default)]
     pub template: ProjectTemplate,
+    #[serde(
+        default = "Project::default_windows",
+        deserialize_with = "Project::de_windows",
+        alias = "window"
+    )]
     pub windows: Vec<Window>,
 }
 
 impl Project {
-    pub fn ensure_name(&mut self, project_name: &str) -> () {
-        if self.session_name.is_none() {
-            self.session_name = Some(project_name.into())
+    pub fn ensure_name(self, project_name: &str) -> Self {
+        Self {
+            session_name: self.session_name.or(Some(project_name.into())),
+            ..self
         }
     }
 
-    pub fn default_window_base_index() -> u32 {
+    pub fn check(&self) -> Result<(), Box<dyn Error>> {
+        if let Some(session_name) = &self.session_name {
+            if session_name.find(&['.', ':'][..]).is_some() {
+                Err("session_name cannot contain the following characters: .:")?;
+            }
+        }
+
+        self.windows
+            .iter()
+            .map(|w| w.check())
+            .collect::<Result<_, _>>()
+    }
+
+    fn default_window_base_index() -> u32 {
         1
     }
 
-    pub fn default_pane_base_index() -> u32 {
+    fn default_pane_base_index() -> u32 {
         1
+    }
+
+    fn default_windows() -> Vec<Window> {
+        vec![Window::default()]
+    }
+
+    fn de_working_dir<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let val: Value = de::Deserialize::deserialize(deserializer)?;
+
+        match val {
+            p if p.is_string() => Ok(Some(p.as_str().unwrap().into())),
+            p if p.is_null() => Ok(Some("~".into())),
+            _ => Err("expected working_dir to be a string or null"),
+        }
+        .map_err(de::Error::custom)
+    }
+
+    fn de_windows<'de, D>(deserializer: D) -> Result<Vec<Window>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let val: Value = de::Deserialize::deserialize(deserializer)?;
+
+        match val.as_sequence() {
+            Some(seq) => Self::de_windows_from_sequence(seq).map_err(de::Error::custom),
+            None => Ok(vec![Window::from_value(&val).map_err(de::Error::custom)?]),
+        }
+    }
+
+    fn de_windows_from_sequence(seq: &serde_yaml::Sequence) -> Result<Vec<Window>, Box<dyn Error>> {
+        seq.into_iter()
+            .map(|val| Window::from_value(val))
+            .collect::<Result<Vec<_>, _>>()
     }
 }
 
-#[derive(Serialize, Debug)]
+impl Default for Project {
+    fn default() -> Self {
+        Self {
+            session_name: None,
+            working_dir: None,
+            window_base_index: Self::default_window_base_index(),
+            pane_base_index: Self::default_pane_base_index(),
+            template: ProjectTemplate::default(),
+            windows: vec![Window::default()],
+        }
+    }
+}
+
+#[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ProjectTemplate {
     Raw(String),
@@ -88,7 +156,7 @@ impl<'de> Deserialize<'de> for ProjectTemplate {
     }
 }
 
-#[derive(Serialize, Default, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct Window {
     #[serde(default)]
     pub name: Option<String>,
@@ -102,7 +170,20 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
+    pub fn check(&self) -> Result<(), Box<dyn Error>> {
+        if let Some(name) = &self.name {
+            if name.find(&['.', ':'][..]).is_some() {
+                Err("window name cannot contain the following characters: .:")?;
+            }
+        }
+
+        self.panes
+            .iter()
+            .map(|p| p.check())
+            .collect::<Result<_, _>>()
+    }
+
+    fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
         match val.as_mapping() {
             Some(map) => Window::from_mapping(map),
             None => Ok(Self {
@@ -114,7 +195,7 @@ impl Window {
         }
     }
 
-    pub fn from_mapping(map: &serde_yaml::Mapping) -> Result<Self, Box<dyn Error>> {
+    fn from_mapping(map: &serde_yaml::Mapping) -> Result<Self, Box<dyn Error>> {
         if map.len() != 1 {
             Err("expected window definition to be a single-value hashmap")?;
         }
@@ -162,9 +243,10 @@ impl Window {
 
     fn de_working_dir(val: Option<&Value>) -> Result<Option<PathBuf>, Box<dyn Error>> {
         Ok(match val {
-            Some(x) => Some(match x.as_str() {
-                Some(path) => path.into(),
-                None => Err("expected working_dir to be a string")?,
+            Some(x) => Some(match x {
+                p if p.is_string() => p.as_str().unwrap().into(),
+                p if p.is_null() => PathBuf::from("~"),
+                _ => Err("expected working_dir to be a string or null")?,
             }),
             None => None,
         })
@@ -172,11 +254,10 @@ impl Window {
 
     fn de_layout(val: Option<&Value>) -> Result<Option<String>, Box<dyn Error>> {
         Ok(match val {
-            Some(layout) => match layout {
-                w if w.is_string() => w.as_str().map(|x| x.into()),
-                w if w.is_null() => None,
+            Some(layout) => Some(match layout.as_str() {
+                Some(l) => l.into(),
                 _ => Err("expected layout to be a string")?,
-            },
+            }),
             None => None,
         })
     }
@@ -213,7 +294,18 @@ impl<'de> Deserialize<'de> for Window {
     }
 }
 
-#[derive(Serialize, Default, Debug)]
+impl Default for Window {
+    fn default() -> Self {
+        Self {
+            name: None,
+            working_dir: None,
+            layout: None,
+            panes: vec![Pane::default()],
+        }
+    }
+}
+
+#[derive(Serialize, Default, Debug, PartialEq)]
 pub struct Pane {
     #[serde(default)]
     pub working_dir: Option<PathBuf>,
@@ -230,16 +322,16 @@ pub struct Pane {
 }
 
 impl Pane {
+    pub fn check(&self) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
     fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
         match val.as_mapping() {
             Some(m) => Self::from_mapping(&m),
             None => Ok(Self {
-                working_dir: None,
-                split: None,
-                split_from: None,
-                split_size: None,
-                post_create: vec![],
                 commands: Self::de_commands_from_val(val)?,
+                ..Self::default()
             }),
         }
     }
@@ -253,7 +345,7 @@ impl Pane {
             split: Self::de_split(map.get(&"split".into()))?,
             split_from: Self::de_split_from(map.get(&"split_from".into()))?,
             split_size: Self::de_split_size(map.get(&"split_size".into()))?,
-            post_create: Self::de_post_create(map.get(&"post_create".into()))?,
+            post_create: Self::de_commands(map.get(&"post_create".into()))?,
             commands: Self::de_commands(
                 map.get(&"commands".into())
                     .map_or_else(|| map.get(&"command".into()), Option::from),
@@ -263,9 +355,10 @@ impl Pane {
 
     fn de_working_dir(val: Option<&Value>) -> Result<Option<PathBuf>, Box<dyn Error>> {
         Ok(match val {
-            Some(x) => Some(match x.as_str() {
-                Some(path) => path.into(),
-                None => Err("expected working_dir to be a string")?,
+            Some(x) => Some(match x {
+                p if p.is_string() => p.as_str().unwrap().into(),
+                p if p.is_null() => PathBuf::from("~"),
+                _ => Err("expected working_dir to be a string or null")?,
             }),
             None => None,
         })
@@ -289,8 +382,8 @@ impl Pane {
     fn de_split_from(val: Option<&Value>) -> Result<Option<u64>, Box<dyn Error>> {
         Ok(match val {
             Some(x) => Some(match x.as_u64() {
-                None => Err("expected split_from to be a positive integer")?,
                 Some(x) => x.into(),
+                None => Err("expected split_from to be a positive integer")?,
             }),
             None => None,
         })
@@ -304,19 +397,6 @@ impl Pane {
                 _ => Err("expected split_size to be either a positive integer or a string")?,
             }),
             None => None,
-        })
-    }
-
-    fn de_post_create(val: Option<&Value>) -> Result<Vec<String>, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => match x.as_sequence() {
-                Some(x) => x
-                    .into_iter()
-                    .map(|x| serde_yaml::from_value(x.clone()))
-                    .collect::<Result<Vec<_>, _>>()?,
-                None => Err("expected post_create to be a list of strings")?,
-            },
-            None => vec![],
         })
     }
 
@@ -337,7 +417,7 @@ impl Pane {
                 .collect::<Result<Vec<_>, _>>()?,
             s if s.is_string() => vec![s.as_str().unwrap().into()],
             n if n.is_null() => vec![],
-            _ => Err("expected commands to be a list of strings")?,
+            _ => Err("expected commands to be null, a string or a list of strings")?,
         })
     }
 }
@@ -345,12 +425,8 @@ impl Pane {
 impl From<&str> for Pane {
     fn from(command: &str) -> Self {
         Self {
-            working_dir: None,
-            split: None,
-            split_from: None,
-            split_size: None,
-            post_create: vec![],
             commands: vec![command.into()],
+            ..Self::default()
         }
     }
 }
@@ -366,10 +442,14 @@ impl<'de> Deserialize<'de> for Pane {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum PaneSplit {
     #[serde(rename = "horizontal")]
     Horizontal,
     #[serde(rename = "vertical")]
     Vertical,
 }
+
+#[cfg(test)]
+#[path = "test/data.rs"]
+mod tests;

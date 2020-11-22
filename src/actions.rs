@@ -50,8 +50,8 @@ pub fn start_project<S: AsRef<OsStr>>(
     ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
 
     let project_yaml = fs::read_to_string(project_path)?;
-    let mut project: data::Project = serde_yaml::from_str(&project_yaml)?;
-    project.ensure_name(&project_name.to_string_lossy());
+    let project = serde_yaml::from_str::<data::Project>(&project_yaml)?
+        .ensure_name(&project_name.to_string_lossy());
 
     // Build and run tmux commands
     let mut context = Context::new();
@@ -94,9 +94,7 @@ pub fn start_project<S: AsRef<OsStr>>(
             .write_all(source.as_bytes())?;
     }
 
-    // Attach if requested
-
-    Ok(()) // nocov
+    Ok(())
 }
 
 pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
