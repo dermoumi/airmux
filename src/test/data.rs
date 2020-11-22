@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn project_ensure_name_replaces_session_name_when_none() {
+fn project_prepare_replaces_session_name_when_none() {
     let project = Project {
         working_dir: Some("/".into()),
         ..Project::default()
@@ -9,9 +9,36 @@ fn project_ensure_name_replaces_session_name_when_none() {
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.session_name, None);
 
-    let project = project.ensure_name("project");
+    let project = project.prepare("project", None);
     assert_eq!(project.working_dir, Some("/".into()));
     assert_eq!(project.session_name, Some("project".into()));
+}
+
+#[test]
+fn project_prepare_replaces_attach_when_force_attach_is_set() {
+    let project = Project {
+        working_dir: Some("/".into()),
+        attach: false,
+        ..Project::default()
+    };
+    assert_eq!(project.working_dir, Some("/".into()));
+    assert_eq!(project.attach, false);
+
+    let project = project.prepare("project", Some(true));
+    assert_eq!(project.working_dir, Some("/".into()));
+    assert_eq!(project.attach, true);
+
+    let project = Project {
+        working_dir: Some("/".into()),
+        attach: true,
+        ..Project::default()
+    };
+    assert_eq!(project.working_dir, Some("/".into()));
+    assert_eq!(project.attach, true);
+
+    let project = project.prepare("project", Some(false));
+    assert_eq!(project.working_dir, Some("/".into()));
+    assert_eq!(project.attach, false);
 }
 
 #[test]

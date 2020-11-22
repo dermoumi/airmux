@@ -26,9 +26,9 @@ pub enum Error {
     #[snafu(display("project name cannot be empty"))]
     ProjectNameEmpty,
     #[snafu(display("project {:?} does not exist", project_name))]
-    ProjectDoesNotExist { project_name: OsString }, // nocov
+    ProjectDoesNotExist { project_name: OsString },
     #[snafu(display("project file {:?} is a directory", path))]
-    ProjectFileIsADirectory { path: PathBuf }, // nocov
+    ProjectFileIsADirectory { path: PathBuf },
     #[snafu(display("cannot pipe to tmux command"))]
     CannotPipeToTmux,
 }
@@ -37,7 +37,7 @@ pub fn start_project<S: AsRef<OsStr>>(
     config: &Config,
     project_name: S,
     template: Option<&str>,
-    attach: bool,
+    force_attach: Option<bool>,
     show_source: bool,
 ) -> Result<(), Box<dyn error::Error>> {
     let project_name = project_name.as_ref();
@@ -51,13 +51,12 @@ pub fn start_project<S: AsRef<OsStr>>(
 
     let project_yaml = fs::read_to_string(project_path)?;
     let project = serde_yaml::from_str::<data::Project>(&project_yaml)?
-        .ensure_name(&project_name.to_string_lossy());
+        .prepare(&project_name.to_string_lossy(), force_attach);
 
     // Build and run tmux commands
     let mut context = Context::new();
     context.insert("tmux_command", &tmux_command.to_string_lossy());
     context.insert("project", &project);
-    context.insert("attach", &attach);
 
     let mut tera = Tera::default();
     tera.register_filter("quote", source::QuoteFilter {});
@@ -83,15 +82,26 @@ pub fn start_project<S: AsRef<OsStr>>(
     if show_source {
         println!("{}", source);
     } else {
-        let child = Command::new(tmux_command)
+        let mut child = Command::new(tmux_command)
             .args(vec!["source", "-"])
             .stdin(Stdio::piped())
             .spawn()?;
-
         child
             .stdin
+            .as_mut()
             .ok_or(Error::CannotPipeToTmux)?
             .write_all(source.as_bytes())?;
+
+        // Wait until tmux completely finished processing input
+        child.wait()?;
+
+        // Attach
+        if project.attach {
+            Command::new(tmux_command)
+                .args(vec!["attach-session", "-t", &project.session_name.unwrap()])
+                .spawn()?
+                .wait()?;
+        }
     }
 
     Ok(())

@@ -41,6 +41,11 @@ subcommands:
             short: m
             long: template
             value_name: TEMPLATE
+        - attach:
+            help: force attach the session
+            short: a
+            long: attach
+            conflicts_with: no_attach
         - no_attach:
             help: don't automatically attach the session
             short: "n"

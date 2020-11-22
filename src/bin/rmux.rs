@@ -36,8 +36,17 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
 
     let project_name = matches.value_of_os("project_name").unwrap();
     let template = matches.value_of_os("template");
-    let attach = !matches.is_present("no_attach");
+    let attach = matches.is_present("attach");
+    let no_attach = matches.is_present("no_attach");
     let source = matches.is_present("source");
+
+    let force_attach = if attach {
+        Some(true)
+    } else if no_attach {
+        Some(false)
+    } else {
+        None
+    };
 
     let template_content;
     let template = match template {
@@ -48,7 +57,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         _ => None,
     };
 
-    actions::start_project(&config, project_name, template, attach, source)
+    actions::start_project(&config, project_name, template, force_attach, source)
 }
 
 fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {

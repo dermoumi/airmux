@@ -17,6 +17,8 @@ pub struct Project {
     pub pane_base_index: u32,
     #[serde(default)]
     pub template: ProjectTemplate,
+    #[serde(default = "Project::default_attach")]
+    pub attach: bool,
     #[serde(
         default = "Project::default_windows",
         deserialize_with = "Project::de_windows",
@@ -26,11 +28,17 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn ensure_name(self, project_name: &str) -> Self {
-        Self {
+    pub fn prepare(self, project_name: &str, force_attach: Option<bool>) -> Self {
+        let mut project = Self {
             session_name: self.session_name.or(Some(project_name.into())),
             ..self
+        };
+
+        if let Some(attach) = force_attach {
+            project.attach = attach
         }
+
+        project
     }
 
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
@@ -52,6 +60,10 @@ impl Project {
 
     fn default_pane_base_index() -> u32 {
         1
+    }
+
+    fn default_attach() -> bool {
+        true
     }
 
     fn default_windows() -> Vec<Window> {
@@ -99,6 +111,7 @@ impl Default for Project {
             window_base_index: Self::default_window_base_index(),
             pane_base_index: Self::default_pane_base_index(),
             template: ProjectTemplate::default(),
+            attach: true,
             windows: vec![Window::default()],
         }
     }
