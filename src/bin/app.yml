@@ -57,6 +57,10 @@ subcommands:
             help: shows notification on whether session was created, updated or not changed at all
             long: verbose
             short: V
+        - args:
+            help: arguments to be passed as variables to the yaml file
+            value_name: ARGUMENT
+            multiple: true
   - kill:
       settings:
         - ColoredHelp

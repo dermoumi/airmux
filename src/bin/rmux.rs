@@ -41,6 +41,8 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let no_attach = matches.is_present("no_attach");
     let source = matches.is_present("source");
     let verbose = matches.is_present("verbose");
+    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+    println!("args: {:?}", args);
 
     let force_attach = if attach {
         Some(true)
@@ -66,6 +68,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         force_attach,
         source,
         verbose,
+        args,
     )
 }
 

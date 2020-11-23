@@ -5,7 +5,7 @@
 # Session name. If not specified defaults to project name. Should not contain `:` or `.`
 # Default: project name
 # Alias: session_name
-name: "test"
+name: __PROJECT_NAME__
 
 # Root directory for windows and panes. Can be overridden for each window or panel.
 # Default: current working directory

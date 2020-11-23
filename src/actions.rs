@@ -46,8 +46,9 @@ pub fn start_project<S: AsRef<OsStr>>(
     force_attach: Option<bool>,
     show_source: bool,
     verbose: bool,
+    args: Vec<String>,
 ) -> Result<(), Box<dyn error::Error>> {
-    let project = project::load(config, &project_name, force_attach)?;
+    let project = project::load(config, &project_name, force_attach, &args)?;
     project.check()?;
 
     // Build and run tmux commands
@@ -151,7 +152,7 @@ pub fn kill_project<S: AsRef<OsStr>>(
     config: &Config,
     project_name: S,
 ) -> Result<(), Box<dyn error::Error>> {
-    let project = project::load(config, &project_name, None)?;
+    let project = project::load(config, &project_name, None, &vec![])?;
     project.check()?;
 
     let session_name = project
@@ -213,7 +214,7 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
         child.wait()?;
 
         // Perform a check on the project
-        let project = project::load(config, project_name, None)?;
+        let project = project::load(config, project_name, None, &vec![])?;
         project.check()?;
     }
 
@@ -282,6 +283,7 @@ mod project {
         config: &Config,
         project_name: S,
         force_attach: Option<bool>,
+        args: &[String],
     ) -> Result<data::Project, Box<dyn error::Error>> {
         let project_name = project_name.as_ref();
         ensure!(!project_name.is_empty(), ProjectNameEmpty {});
@@ -291,7 +293,7 @@ mod project {
         ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
 
         let project_yaml = fs::read_to_string(project_path)?;
-        let project_yaml = env_with_context(&project_yaml, env_context)
+        let project_yaml = env_with_context(&project_yaml, |s| env_context(s, args))
             .map_err(|x| x.to_string())?
             .to_string();
 
@@ -304,8 +306,16 @@ mod project {
         )
     }
 
-    fn env_context(s: &str) -> Result<Option<String>, Box<dyn error::Error>> {
-        Ok(env::var(s).ok().or(Some("".into())))
+    fn env_context(s: &str, args: &[String]) -> Result<Option<String>, Box<dyn error::Error>> {
+        // Check if it's a number and that it's > 0 and <= args.len()
+        if let Ok(arg_index) = s.parse::<usize>() {
+            if arg_index > 0 && arg_index <= args.len() {
+                return Ok(Some(args[arg_index - 1].to_owned()));
+            }
+        }
+
+        // Fallback to env vars
+        Ok(env::var(s).ok())
     }
 }
 
