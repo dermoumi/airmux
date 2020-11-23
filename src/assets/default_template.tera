@@ -20,6 +20,14 @@ if-shell {{ '! ' ~ cmd ~ ' list-session -F "##S" | grep -Fx ' ~ session_name | q
 set -s -t {{ session_name }} base-index {{ project.window_base_index }}
 set -s -t {{ session_name }} pane-base-index {{ project.pane_base_index }}
 
+# Run on_create commands
+{%- for command in project.on_create %}
+{%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                             | replace(from="__SESSION__", to=session_name)
+                             | quote %}
+run-shell {{ cmd_quoted }}
+{%- endfor %}
+
 {% for window in project.windows -%}
 {% set window_index = loop.index - 1 + project.window_base_index -%}
 
@@ -45,9 +53,10 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- endif %}
 
     {%- for command in window.on_create %}
-    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
-                                             | replace(from="__WINDOW__", to=target_window)
-                                             | quote %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | quote %}
     run-shell {{ cmd_quoted }}
     {%- endfor %}
 
@@ -93,10 +102,11 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- set target_pane = project.session_name ~ ':' ~ window_index ~ '.#{__RMUX_PANE_' ~ pane_index ~ '}' | quote %}
 
     {%- for command in pane.on_create %}
-    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
-                                             | replace(from="__WINDOW__", to=target_window)
-                                             | replace(from="__PANE__", to=target_pane)
-                                             | quote %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | replace(from="__PANE__", to=target_pane)
+                                 | quote %}
     run-shell {{ cmd_quoted }}
     {%- endfor %}
 
@@ -107,10 +117,11 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- endfor %}
 
     {%- for command in pane.post_create %}
-    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
-                                             | replace(from="__WINDOW__", to=target_window)
-                                             | replace(from="__PANE__", to=target_pane)
-                                             | quote %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | replace(from="__PANE__", to=target_pane)
+                                 | quote %}
     run-shell {{ cmd_quoted }}
     {%- endfor %}
 
@@ -134,9 +145,10 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {% endfor %}
 
     {%- for command in window.post_create -%}
-    {%- set cmd_quoted = cmd ~ ' ' ~ command | replace(from="__SESSION__", to=session_name)
-                                             | replace(from="__WINDOW__", to=target_window)
-                                             | quote %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | quote %}
     run-shell {{ cmd_quoted }}
     {% endfor -%}
 
@@ -159,6 +171,14 @@ if-shell -F '#{__RMUX_SESSION_CREATED}' {
     {% endif -%}
     select-window -t {{ startup_window }}
 }
+
+# Run post_create commands
+{%- for command in project.post_create %}
+{%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                             | replace(from="__SESSION__", to=session_name)
+                             | quote %}
+run-shell {{ cmd_quoted }}
+{%- endfor %}
 
 {% if verbose -%}
 # Show indicator message

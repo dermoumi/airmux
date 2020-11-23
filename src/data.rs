@@ -35,10 +35,14 @@ pub struct Project {
     pub pane_base_index: usize,
     #[serde(default)]
     pub startup_window: StartupWindow,
-    #[serde(default)]
-    pub template: ProjectTemplate,
+    #[serde(default, deserialize_with = "Project::de_commands")]
+    pub on_create: Vec<String>,
+    #[serde(default, deserialize_with = "Project::de_commands")]
+    pub post_create: Vec<String>,
     #[serde(default = "Project::default_attach")]
     pub attach: bool,
+    #[serde(default)]
+    pub template: ProjectTemplate,
     #[serde(
         default = "Project::default_windows",
         deserialize_with = "Project::de_windows",
@@ -234,6 +238,29 @@ impl Project {
             .map(|val| Window::from_value(val))
             .collect::<Result<Vec<_>, _>>()
     }
+
+    fn de_commands<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let val: Value = de::Deserialize::deserialize(deserializer)?;
+
+        Self::de_commands_from_val(&val).map_err(de::Error::custom)
+    }
+
+    fn de_commands_from_val(val: &Value) -> Result<Vec<String>, Box<dyn Error>> {
+        Ok(match val {
+            s if s.is_sequence() => s
+                .as_sequence()
+                .unwrap()
+                .into_iter()
+                .map(|x| serde_yaml::from_value::<String>(x.clone()).map(|s| s.replace("#", "##")))
+                .collect::<Result<Vec<_>, _>>()?,
+            s if s.is_string() => vec![s.as_str().unwrap().replace("#", "##")],
+            n if n.is_null() => vec![],
+            _ => Err("expected commands to be null, a string or a list of strings")?,
+        })
+    }
 }
 
 impl Default for Project {
@@ -247,8 +274,10 @@ impl Default for Project {
             window_base_index: Self::default_window_base_index(),
             pane_base_index: Self::default_pane_base_index(),
             startup_window: StartupWindow::default(),
-            template: ProjectTemplate::default(),
+            on_create: vec![],
+            post_create: vec![],
             attach: true,
+            template: ProjectTemplate::default(),
             windows: vec![Window::default()],
         }
     }

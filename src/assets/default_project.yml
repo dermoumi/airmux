@@ -81,8 +81,8 @@ windows:
           # _tmux_ commands to run after the pane is ready
           post_create:
             # Send Ctrl+L to clear the screen.
-            # __SESSION__, __WINDOW__, __PANE__ are substiuted with session, window and pane identifiers respectively
-            - send-keys -t __PANE__ C-l
+            # __TMUX__, __SESSION__, __WINDOW__, __PANE__ are substiuted with tmux_command, session, window and pane identifiers respectively
+            - __TMUX__ send-keys -t __PANE__ C-l
   # You can use null or ~ to use the default window name
   - ~:
       # You can choose one of the 5 default layouts:
