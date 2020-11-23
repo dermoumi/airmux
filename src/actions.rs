@@ -69,7 +69,17 @@ pub fn start_project<S: AsRef<OsStr>>(
             template_content.as_str()
         }
         data::ProjectTemplate::File(filename) => {
-            template_content = fs::read_to_string(filename)?;
+            let full_path = if filename.has_root() {
+                filename.to_owned()
+            } else {
+                let project_dir = config
+                    .get_projects_dir(project_name.as_ref())?
+                    .parent()
+                    .map_or_else(|| PathBuf::new(), |p| PathBuf::from(p));
+                PathBuf::from(project_dir.join(filename).canonicalize()?)
+            };
+
+            template_content = fs::read_to_string(full_path)?;
             template_content.as_str()
         }
         data::ProjectTemplate::Default => {

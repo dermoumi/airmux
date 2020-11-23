@@ -49,10 +49,10 @@ subcommands:
             help: don't automatically attach the session
             short: d
             long: no-attach
-        - source:
+        - debug:
             help: only print tmux command source without actually running tmux
-            long: source
-            short: s
+            long: debug
+            short: D
         - verbose:
             help: shows notification on whether session was created, updated or not changed at all
             long: verbose
