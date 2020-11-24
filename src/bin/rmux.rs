@@ -42,7 +42,6 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let source = matches.is_present("debug");
     let verbose = matches.is_present("verbose");
     let args = matches.values_of_lossy("args").unwrap_or(vec![]);
-    println!("args: {:?}", args);
 
     let force_attach = if attach {
         Some(true)
@@ -76,8 +75,9 @@ fn command_kill(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_os("project_name").unwrap();
+    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
 
-    actions::kill_project(&config, project_name)
+    actions::kill_project(&config, project_name, args)
 }
 
 fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
