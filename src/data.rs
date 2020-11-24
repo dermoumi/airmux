@@ -493,6 +493,32 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             "null name can only be set as first element of the map",
                         ))?;
                     }
+                    match value {
+                        WindowOption::None => {}
+                        WindowOption::String(string) => {
+                            window.panes = vec![Pane {
+                                commands: vec![string],
+                                ..Pane::default()
+                            }]
+                        }
+                        WindowOption::CommandList(commands) => {
+                            window.panes = commands
+                                .into_iter()
+                                .map(|command| Pane {
+                                    commands: vec![command],
+                                    ..Pane::default()
+                                })
+                                .collect()
+                        }
+                        WindowOption::PaneList(panes) => window.panes = panes,
+                        WindowOption::Definition(def) => {
+                            window.working_dir = def.working_dir;
+                            window.layout = def.layout;
+                            window.on_create = def.on_create;
+                            window.post_create = def.post_create;
+                            window.panes = def.panes;
+                        }
+                    }
                 }
                 Some(key) => match value {
                     WindowOption::None => match key.as_str() {
