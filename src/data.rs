@@ -396,6 +396,27 @@ impl Window {
     }
 }
 
+impl From<&str> for Window {
+    fn from(command: &str) -> Self {
+        Self {
+            panes: vec![command.into()],
+            ..Self::default()
+        }
+    }
+}
+
+impl From<Vec<String>> for Window {
+    fn from(commands: Vec<String>) -> Self {
+        Self {
+            panes: commands
+                .into_iter()
+                .map(|command| Pane::from(command.as_str()))
+                .collect(),
+            ..Self::default()
+        }
+    }
+}
+
 struct WindowVisitor;
 
 impl<'de> Visitor<'de> for WindowVisitor {
@@ -423,32 +444,20 @@ impl<'de> Visitor<'de> for WindowVisitor {
     where
         E: Error,
     {
-        Ok(Window {
-            panes: vec![Pane {
-                commands: vec![v.to_string()],
-                ..Pane::default()
-            }],
-            ..Window::default()
-        })
+        Ok(Window::from(v))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: de::SeqAccess<'de>,
     {
-        let mut panes: Vec<Pane> = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+        let mut commands: Vec<String> = Vec::with_capacity(seq.size_hint().unwrap_or(0));
 
-        while let Some(command) = seq.next_element()? {
-            panes.push(Pane {
-                commands: vec![command],
-                ..Pane::default()
-            });
+        while let Some(command) = seq.next_element::<String>()? {
+            commands.push(command);
         }
 
-        Ok(Window {
-            panes,
-            ..Window::default()
-        })
+        Ok(Window::from(commands))
     }
 
     fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
@@ -493,6 +502,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             "null name can only be set as first element of the map",
                         ))?;
                     }
+
                     match value {
                         WindowOption::None => {}
                         WindowOption::String(string) => {
@@ -545,25 +555,17 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "layout" => window.layout = Some(string),
                         "on_create" => window.on_create = vec![string],
                         "post_create" => window.post_create = vec![string],
-                        "panes" => {
-                            window.panes = vec![Pane {
-                                commands: vec![string],
-                                ..Pane::default()
-                            }]
-                        }
+                        "panes" => window.panes = vec![Pane::from(string.as_str())],
                         _ => {
-                            if first_entry {
-                                window.name = Some(key);
-                                window.panes = vec![Pane {
-                                    commands: vec![string],
-                                    ..Pane::default()
-                                }]
-                            } else {
+                            if !first_entry {
                                 Err(de::Error::custom(format!(
                                     "window field {:?} cannot be a string",
                                     key
                                 )))?
                             }
+
+                            window.name = Some(key);
+                            window.panes = vec![Pane::from(string.as_str())]
                         }
                     },
                     WindowOption::CommandList(commands) => match key.as_str() {
@@ -576,51 +578,48 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             }]
                         }
                         _ => {
-                            if first_entry {
-                                window.name = Some(key);
-                                window.panes = commands
-                                    .into_iter()
-                                    .map(|command| Pane {
-                                        commands: vec![command],
-                                        ..Pane::default()
-                                    })
-                                    .collect()
-                            } else {
+                            if !first_entry {
                                 Err(de::Error::custom(format!(
                                     "window field {:?} cannot be a command list",
                                     key
                                 )))?
                             }
+
+                            window.name = Some(key);
+                            window.panes = commands
+                                .into_iter()
+                                .map(|command| Pane::from(command.as_str()))
+                                .collect()
                         }
                     },
                     WindowOption::PaneList(panes) => match key.as_str() {
                         "panes" => window.panes = panes,
                         _ => {
-                            if first_entry {
-                                window.name = Some(key);
-                                window.panes = panes
-                            } else {
+                            if !first_entry {
                                 Err(de::Error::custom(format!(
                                     "window field {:?} cannot be a pane list",
                                     key
                                 )))?
                             }
+
+                            window.name = Some(key);
+                            window.panes = panes
                         }
                     },
                     WindowOption::Definition(def) => {
-                        if first_entry {
-                            window.name = Some(key);
-                            window.working_dir = def.working_dir;
-                            window.layout = def.layout;
-                            window.on_create = def.on_create;
-                            window.post_create = def.post_create;
-                            window.panes = def.panes;
-                        } else {
+                        if !first_entry {
                             Err(de::Error::custom(format!(
                                 "window field {:?} cannot be a window definition",
                                 key
                             )))?
                         }
+
+                        window.name = Some(key);
+                        window.working_dir = def.working_dir;
+                        window.layout = def.layout;
+                        window.on_create = def.on_create;
+                        window.post_create = def.post_create;
+                        window.panes = def.panes;
                     }
                 },
             }
@@ -703,6 +702,15 @@ impl From<&str> for Pane {
     fn from(command: &str) -> Self {
         Self {
             commands: vec![command.into()],
+            ..Self::default()
+        }
+    }
+}
+
+impl From<Vec<String>> for Pane {
+    fn from(commands: Vec<String>) -> Self {
+        Self {
+            commands,
             ..Self::default()
         }
     }
