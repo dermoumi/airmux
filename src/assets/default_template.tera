@@ -101,6 +101,24 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     run-shell -t '{{ target_window }}' {{ cmd_pane_env }}
     {%- set target_pane = project.session_name ~ ':' ~ window_index ~ '.#{__RMUX_PANE_' ~ pane_index ~ '}' | quote %}
 
+    {%- for command in project.on_pane_create %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | replace(from="__PANE__", to=target_pane)
+                                 | quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endfor %}
+
+    {%- for command in window.on_pane_create %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | replace(from="__PANE__", to=target_pane)
+                                 | quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endfor %}
+
     {%- for command in pane.on_create %}
     {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
                                  | replace(from="__SESSION__", to=session_name)

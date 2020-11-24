@@ -23,6 +23,7 @@ pub struct Project {
     pub startup_window: StartupWindow,
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
+    pub on_pane_create: Vec<String>,
     pub attach: bool,
     pub template: ProjectTemplate,
     pub windows: Vec<Window>,
@@ -203,6 +204,7 @@ impl Default for Project {
             startup_window: StartupWindow::default(),
             on_create: vec![],
             post_create: vec![],
+            on_pane_create: vec![],
             attach: true,
             template: ProjectTemplate::default(),
             windows: vec![Window::default()],
@@ -225,43 +227,45 @@ impl<'de> Deserialize<'de> for Project {
         #[serde(deny_unknown_fields)]
         struct ProjectProxy {
             #[serde(default, alias = "name")]
-            pub session_name: Option<String>,
+            session_name: Option<String>,
             #[serde(default)]
-            pub tmux_command: Option<String>,
+            tmux_command: Option<String>,
             #[serde(default)]
-            pub tmux_options: Option<String>,
+            tmux_options: Option<String>,
             #[serde(default, alias = "socket_name")]
-            pub tmux_socket: Option<String>,
+            tmux_socket: Option<String>,
             #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
-            pub working_dir: Option<PathBuf>,
+            working_dir: Option<PathBuf>,
             #[serde(
                 default = "Project::default_window_base_index",
                 deserialize_with = "Project::de_window_base_index"
             )]
-            pub window_base_index: usize,
+            window_base_index: usize,
             #[serde(
                 default = "Project::default_pane_base_index",
                 deserialize_with = "Project::de_pane_base_index"
             )]
-            pub pane_base_index: usize,
+            pane_base_index: usize,
             #[serde(default)]
-            pub startup_window: StartupWindow,
+            startup_window: StartupWindow,
             #[serde(default, deserialize_with = "de_command_list")]
-            pub on_create: Vec<String>,
+            on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
-            pub post_create: Vec<String>,
+            post_create: Vec<String>,
+            #[serde(default, alias = "pre_window", deserialize_with = "de_command_list")]
+            on_pane_create: Vec<String>,
             #[serde(default, alias = "tmux_attached")]
-            pub attach: Option<bool>,
+            attach: Option<bool>,
             #[serde(default, alias = "tmux_detached")]
-            pub detached: Option<bool>,
+            detached: Option<bool>,
             #[serde(default)]
-            pub template: ProjectTemplate,
+            template: ProjectTemplate,
             #[serde(
                 default = "Project::default_windows",
                 deserialize_with = "Project::de_windows",
                 alias = "window"
             )]
-            pub windows: Vec<Window>,
+            windows: Vec<Window>,
         }
 
         let opt: Option<ProjectProxy> = de::Deserialize::deserialize(deserializer)?;
@@ -293,6 +297,7 @@ impl<'de> Deserialize<'de> for Project {
                     startup_window: project.startup_window,
                     on_create: project.on_create,
                     post_create: project.post_create,
+                    on_pane_create: project.on_pane_create,
                     attach,
                     template: project.template,
                     windows: project.windows,
@@ -365,6 +370,7 @@ pub struct Window {
     pub layout: Option<String>,
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
+    pub on_pane_create: Vec<String>,
     pub panes: Vec<Pane>,
 }
 
@@ -490,6 +496,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
             on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_create: Vec<String>,
+            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            on_pane_create: Vec<String>,
             #[serde(default)]
             panes: Vec<Pane>,
         }
@@ -507,6 +515,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
             on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_create: Vec<String>,
+            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            on_pane_create: Vec<String>,
             #[serde(default)]
             panes: Vec<Pane>,
         }
@@ -552,6 +562,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.layout = def.layout;
                             window.on_create = def.on_create;
                             window.post_create = def.post_create;
+                            window.on_pane_create = def.on_pane_create;
                             window.panes = def.panes;
                         }
                         WindowOption::Definition(def) => {
@@ -559,6 +570,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.layout = def.layout;
                             window.on_create = def.on_create;
                             window.post_create = def.post_create;
+                            window.on_pane_create = def.on_pane_create;
                             window.panes = def.panes;
                         }
                     }
@@ -570,6 +582,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "layout" => window.layout = None,
                         "on_create" => window.on_create = vec![],
                         "post_create" => window.post_create = vec![],
+                        "on_pane_create" => window.on_pane_create = vec![],
                         "panes" => window.panes = vec![Pane::default()],
                         _ => {
                             if !first_entry {
@@ -590,6 +603,9 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "layout" => window.layout = Some(val),
                         "on_create" => window.on_create = vec![process_command(val)],
                         "post_create" => window.post_create = vec![process_command(val)],
+                        "on_pane_create" | "pre" => {
+                            window.on_pane_create = vec![process_command(val)]
+                        }
                         "panes" => window.panes = vec![Pane::from(val)],
                         _ => {
                             if !first_entry {
@@ -606,6 +622,9 @@ impl<'de> Visitor<'de> for WindowVisitor {
                     WindowOption::CommandList(commands) => match key.as_str() {
                         "on_create" => window.on_create = process_command_list(commands),
                         "post_create" => window.post_create = process_command_list(commands),
+                        "on_pane_create" | "pre" => {
+                            window.on_pane_create = process_command_list(commands)
+                        }
                         "panes" => {
                             window.panes = commands
                                 .into_iter()
@@ -698,6 +717,7 @@ impl Default for Window {
             layout: None,
             on_create: vec![],
             post_create: vec![],
+            on_pane_create: vec![],
             panes: vec![Pane::default()],
         }
     }
