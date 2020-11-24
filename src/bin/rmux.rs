@@ -39,7 +39,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let template = matches.value_of_os("template");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
-    let source = matches.is_present("source");
+    let source = matches.is_present("debug");
     let verbose = matches.is_present("verbose");
     let args = matches.values_of_lossy("args").unwrap_or(vec![]);
     println!("args: {:?}", args);
