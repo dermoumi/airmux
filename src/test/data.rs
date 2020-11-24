@@ -319,10 +319,11 @@ fn window_raises_error_on_multiple_hashmap_keys() {
 
     let result = serde_yaml::from_str::<Window>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "expected window definition to be a single-value hashmap"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("window field \"win2\" cannot be null"));
 }
 
 #[test]
@@ -348,15 +349,16 @@ fn window_def_deserializes_name_null() {
 #[test]
 fn window_def_raises_error_on_invalid_name_value() {
     let yaml = r#"
-        42:
+        []:
     "#;
 
     let result = serde_yaml::from_str::<Window>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "expected window name to be a string"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("invalid type: sequence, expected a string"));
 }
 
 #[test]
@@ -410,10 +412,11 @@ fn window_def_raises_error_on_invalid_working_dir_value() {
 
     let result = serde_yaml::from_str::<Window>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "expected working_dir to be a string or null"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum WindowOption"));
 }
 
 #[test]
@@ -437,10 +440,11 @@ fn window_def_raises_error_on_invalid_layout_value() {
 
     let result = serde_yaml::from_str::<Window>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "expected layout to be a string"
-    )
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum WindowOption"));
 }
 
 #[test]

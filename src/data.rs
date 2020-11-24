@@ -1,13 +1,14 @@
 use crate::config::Config;
 use crate::utils::{parse_command, valid_tmux_identifier};
 
+use de::Visitor;
 use serde::{de, Deserialize, Serialize};
-use serde_yaml::Value;
 use shell_words::{quote, split};
 use shellexpand::tilde;
 
 use std::error::Error;
 use std::ffi::OsString;
+use std::fmt;
 use std::path::PathBuf;
 
 #[derive(Serialize, Debug, PartialEq)]
@@ -347,8 +348,7 @@ impl Default for StartupWindow {
 pub struct Window {
     #[serde(default)]
     pub name: Option<String>,
-    #[serde(default)]
-    #[serde(alias = "root")]
+    #[serde(default, alias = "root")]
     pub working_dir: Option<PathBuf>,
     #[serde(default)]
     pub layout: Option<String>,
@@ -394,135 +394,215 @@ impl Window {
             .map(|p| p.check())
             .collect::<Result<_, _>>()
     }
+}
 
-    fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
-        match val.as_mapping() {
-            Some(map) => Window::from_mapping(map),
-            None => Ok(Self {
-                panes: Self::de_panes_from_val(val)?,
-                ..Self::default()
-            }),
-        }
+struct WindowVisitor;
+
+impl<'de> Visitor<'de> for WindowVisitor {
+    type Value = Window;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a window definition")
     }
 
-    fn from_mapping(map: &serde_yaml::Mapping) -> Result<Self, Box<dyn Error>> {
-        // TODO: Implement better parsing for this
-        let _reserved_names = [
-            "name",
-            "working_dir",
-            "root",
-            "layout",
-            "on_create",
-            "post_create",
-            "panes",
-        ];
-
-        if map.len() != 1 {
-            Err("expected window definition to be a single-value hashmap")?;
-        }
-
-        let (name, definition) = map.iter().next().unwrap();
-
-        Self::de_windef(Self::de_name(name)?, definition)
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Window::default())
     }
 
-    fn de_name(val: &Value) -> Result<Option<String>, Box<dyn Error>> {
-        Ok(match val {
-            n if n.is_string() => n.as_str().map(|x| x.into()),
-            n if n.is_null() => None,
-            _ => Err("expected window name to be a string")?,
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Window::default())
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Window {
+            panes: vec![Pane {
+                commands: vec![v.to_string()],
+                ..Pane::default()
+            }],
+            ..Window::default()
         })
     }
 
-    fn de_windef(name: Option<String>, definition: &Value) -> Result<Self, Box<dyn Error>> {
-        match definition.as_mapping() {
-            Some(map) => Self::de_windef_from_mapping(name, map),
-            None => Ok(Self {
-                name,
-                panes: Self::de_panes_from_val(definition)?,
-                ..Self::default()
-            }),
-        }
-    }
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let mut panes: Vec<Pane> = Vec::with_capacity(seq.size_hint().unwrap_or(0));
 
-    fn de_windef_from_mapping(
-        name: Option<String>,
-        definition: &serde_yaml::Mapping,
-    ) -> Result<Self, Box<dyn Error>> {
-        Ok(Self {
-            name,
-            working_dir: Self::de_working_dir(
-                definition
-                    .get(&"working_dir".into())
-                    .map_or_else(|| definition.get(&"root".into()), Option::from),
-            )?,
-            layout: Self::de_layout(definition.get(&"layout".into()))?,
-            on_create: Self::de_commands(definition.get(&"on_create".into()))?,
-            post_create: Self::de_commands(definition.get(&"post_create".into()))?,
-            panes: Self::de_panes(definition.get(&"panes".into()))?,
+        while let Some(command) = seq.next_element()? {
+            panes.push(Pane {
+                commands: vec![command],
+                ..Pane::default()
+            });
+        }
+
+        Ok(Window {
+            panes,
+            ..Window::default()
         })
     }
 
-    fn de_working_dir(val: Option<&Value>) -> Result<Option<PathBuf>, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => Some(match x {
-                p if p.is_string() => tilde(p.as_str().unwrap()).to_string().into(),
-                p if p.is_null() => tilde("~").to_string().into(),
-                _ => Err("expected working_dir to be a string or null")?,
-            }),
-            None => None,
-        })
-    }
+    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+    where
+        M: de::MapAccess<'de>,
+    {
+        type WindowKeyType = Option<String>;
 
-    fn de_layout(val: Option<&Value>) -> Result<Option<String>, Box<dyn Error>> {
-        Ok(match val {
-            Some(layout) => Some(match layout.as_str() {
-                Some(l) => l.into(),
-                _ => Err("expected layout to be a string")?,
-            }),
-            None => None,
-        })
-    }
-
-    fn de_commands(val: Option<&Value>) -> Result<Vec<String>, Box<dyn Error>> {
-        match val {
-            Some(x) => Self::de_commands_from_val(x),
-            None => Ok(vec![]),
+        #[derive(Deserialize, Debug)]
+        struct WindowDef {
+            #[serde(default)]
+            pub name: Option<String>,
+            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
+            pub working_dir: Option<PathBuf>,
+            #[serde(default)]
+            pub layout: Option<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            pub on_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            pub post_create: Vec<String>,
+            #[serde(default)]
+            pub panes: Vec<Pane>,
         }
-    }
 
-    fn de_commands_from_val(val: &Value) -> Result<Vec<String>, Box<dyn Error>> {
-        Ok(match val {
-            s if s.is_sequence() => s
-                .as_sequence()
-                .unwrap()
-                .into_iter()
-                .map(|x| serde_yaml::from_value::<String>(x.clone()).map(|s| s.replace("#", "##")))
-                .collect::<Result<Vec<_>, _>>()?,
-            s if s.is_string() => vec![s.as_str().unwrap().replace("#", "##")],
-            n if n.is_null() => vec![],
-            _ => Err("expected commands to be null, a string or a list of strings")?,
-        })
-    }
-
-    fn de_panes(val: Option<&Value>) -> Result<Vec<Pane>, Box<dyn Error>> {
-        match val {
-            Some(panes) => Self::de_panes_from_val(panes),
-            None => Ok(vec![]),
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum WindowOption {
+            None,
+            String(String),
+            CommandList(Vec<String>),
+            PaneList(Vec<Pane>),
+            Definition(WindowDef),
         }
-    }
 
-    fn de_panes_from_val(val: &Value) -> Result<Vec<Pane>, Box<dyn Error>> {
-        match val.as_sequence() {
-            Some(seq) => Self::de_panes_from_sequence(seq),
-            None => Ok(vec![Pane::from_value(val)?]),
+        let mut first_entry = true;
+        let mut window = Self::Value::default();
+        while let Some((key, value)) = map.next_entry::<WindowKeyType, WindowOption>()? {
+            match key {
+                None => {
+                    if !first_entry {
+                        Err(de::Error::custom(
+                            "null name can only be set as first element of the map",
+                        ))?;
+                    }
+                }
+                Some(key) => match value {
+                    WindowOption::None => match key.as_str() {
+                        "name" => window.name = None,
+                        "working_dir" | "root" => window.working_dir = None,
+                        "layout" => window.layout = None,
+                        "on_create" => window.on_create = vec![],
+                        "post_create" => window.post_create = vec![],
+                        "panes" => window.panes = vec![Pane::default()],
+                        _ => {
+                            if first_entry {
+                                window.name = Some(key);
+                            } else {
+                                Err(de::Error::custom(format!(
+                                    "window field {:?} cannot be null",
+                                    key
+                                )))?;
+                            }
+                        }
+                    },
+                    WindowOption::String(string) => match key.as_str() {
+                        "name" => window.name = Some(string),
+                        "working_dir" | "root" => window.working_dir = Some(PathBuf::from(string)),
+                        "layout" => window.layout = Some(string),
+                        "on_create" => window.on_create = vec![string],
+                        "post_create" => window.post_create = vec![string],
+                        "panes" => {
+                            window.panes = vec![Pane {
+                                commands: vec![string],
+                                ..Pane::default()
+                            }]
+                        }
+                        _ => {
+                            if first_entry {
+                                window.name = Some(key);
+                                window.panes = vec![Pane {
+                                    commands: vec![string],
+                                    ..Pane::default()
+                                }]
+                            } else {
+                                Err(de::Error::custom(format!(
+                                    "window field {:?} cannot be a string",
+                                    key
+                                )))?
+                            }
+                        }
+                    },
+                    WindowOption::CommandList(commands) => match key.as_str() {
+                        "on_create" => window.on_create = commands,
+                        "post_create" => window.post_create = commands,
+                        "panes" => {
+                            window.panes = vec![Pane {
+                                commands,
+                                ..Pane::default()
+                            }]
+                        }
+                        _ => {
+                            if first_entry {
+                                window.name = Some(key);
+                                window.panes = commands
+                                    .into_iter()
+                                    .map(|command| Pane {
+                                        commands: vec![command],
+                                        ..Pane::default()
+                                    })
+                                    .collect()
+                            } else {
+                                Err(de::Error::custom(format!(
+                                    "window field {:?} cannot be a command list",
+                                    key
+                                )))?
+                            }
+                        }
+                    },
+                    WindowOption::PaneList(panes) => match key.as_str() {
+                        "panes" => window.panes = panes,
+                        _ => {
+                            if first_entry {
+                                window.name = Some(key);
+                                window.panes = panes
+                            } else {
+                                Err(de::Error::custom(format!(
+                                    "window field {:?} cannot be a pane list",
+                                    key
+                                )))?
+                            }
+                        }
+                    },
+                    WindowOption::Definition(def) => {
+                        if first_entry {
+                            window.name = Some(key);
+                            window.working_dir = def.working_dir;
+                            window.layout = def.layout;
+                            window.on_create = def.on_create;
+                            window.post_create = def.post_create;
+                            window.panes = def.panes;
+                        } else {
+                            Err(de::Error::custom(format!(
+                                "window field {:?} cannot be a window definition",
+                                key
+                            )))?
+                        }
+                    }
+                },
+            }
+
+            first_entry = false;
         }
-    }
 
-    fn de_panes_from_sequence(seq: &serde_yaml::Sequence) -> Result<Vec<Pane>, Box<dyn Error>> {
-        seq.into_iter()
-            .map(|val| Pane::from_value(val))
-            .collect::<Result<Vec<_>, _>>()
+        Ok(window)
     }
 }
 
@@ -531,9 +611,7 @@ impl<'de> Deserialize<'de> for Window {
     where
         D: de::Deserializer<'de>,
     {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        Self::from_value(&val).map_err(de::Error::custom)
+        deserializer.deserialize_any(WindowVisitor)
     }
 }
 
@@ -572,113 +650,6 @@ impl Pane {
         }
 
         Ok(())
-    }
-
-    fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
-        match val.as_mapping() {
-            Some(m) => Self::from_mapping(&m),
-            None => Ok(Self {
-                commands: Self::de_commands_from_val(val)?,
-                ..Self::default()
-            }),
-        }
-    }
-
-    fn from_mapping(map: &serde_yaml::Mapping) -> Result<Self, Box<dyn Error>> {
-        Ok(Self {
-            working_dir: Self::de_working_dir(
-                map.get(&"working_dir".into())
-                    .map_or_else(|| map.get(&"root".into()), Option::from),
-            )?,
-            split: Self::de_split_old(map.get(&"split".into()))?,
-            split_from: Self::de_split_from(map.get(&"split_from".into()))?,
-            split_size: Self::de_split_size_old(map.get(&"split_size".into()))?,
-            clear: Self::de_clear(map.get(&"clear".into()))?,
-            on_create: Self::de_commands(map.get(&"on_create".into()))?,
-            post_create: Self::de_commands(map.get(&"post_create".into()))?,
-            commands: Self::de_commands(
-                map.get(&"commands".into())
-                    .map_or_else(|| map.get(&"command".into()), Option::from),
-            )?,
-        })
-    }
-
-    fn de_working_dir(val: Option<&Value>) -> Result<Option<PathBuf>, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => Some(match x {
-                p if p.is_string() => tilde(p.as_str().unwrap()).to_string().into(),
-                p if p.is_null() => tilde("~").to_string().into(),
-                _ => Err("expected working_dir to be a string or null")?,
-            }),
-            None => None,
-        })
-    }
-
-    fn de_split_old(val: Option<&Value>) -> Result<Option<PaneSplit>, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => Some(match x.as_str() {
-                Some(x) if ["v", "vertical"].contains(&x.to_lowercase().as_str()) => {
-                    PaneSplit::Vertical
-                }
-                Some(x) if ["h", "horizontal"].contains(&x.to_lowercase().as_str()) => {
-                    PaneSplit::Horizontal
-                }
-                _ => Err("expected split value to match v|h|vertical|horizontal")?,
-            }),
-            None => None,
-        })
-    }
-
-    fn de_split_from(val: Option<&Value>) -> Result<Option<usize>, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => Some(match x.as_u64() {
-                Some(x) => x as usize,
-                None => Err("expected split_from to be a positive integer")?,
-            }),
-            None => None,
-        })
-    }
-
-    fn de_split_size_old(val: Option<&Value>) -> Result<Option<String>, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => Some(match x {
-                x if x.is_u64() => x.as_u64().unwrap().to_string(),
-                x if x.is_string() => x.as_str().unwrap().into(),
-                _ => Err("expected split_size to be either a positive integer or a string")?,
-            }),
-            None => None,
-        })
-    }
-
-    fn de_clear(val: Option<&Value>) -> Result<bool, Box<dyn Error>> {
-        Ok(match val {
-            Some(x) => match x.as_bool() {
-                Some(x) => x,
-                None => Err("expected clear to be either a boolean")?,
-            },
-            None => false,
-        })
-    }
-
-    fn de_commands(val: Option<&Value>) -> Result<Vec<String>, Box<dyn Error>> {
-        match val {
-            Some(x) => Self::de_commands_from_val(x),
-            None => Ok(vec![]),
-        }
-    }
-
-    fn de_commands_from_val(val: &Value) -> Result<Vec<String>, Box<dyn Error>> {
-        Ok(match val {
-            s if s.is_sequence() => s
-                .as_sequence()
-                .unwrap()
-                .into_iter()
-                .map(|x| serde_yaml::from_value::<String>(x.clone()).map(|s| s.replace("#", "##")))
-                .collect::<Result<Vec<_>, _>>()?,
-            s if s.is_string() => vec![s.as_str().unwrap().replace("#", "##")],
-            n if n.is_null() => vec![],
-            _ => Err("expected commands to be null, a string or a list of strings")?,
-        })
     }
 
     fn de_split_size<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -819,7 +790,6 @@ where
     };
 
     let command_list: CommandList = de::Deserialize::deserialize(deserializer)?;
-
     Ok(match command_list {
         CommandList::List(commands) => commands.iter().map(|s| s.replace("#", "##")).collect(),
         CommandList::Single(command) => vec![command.replace("#", "##")],
