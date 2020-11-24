@@ -12,7 +12,6 @@ use std::fmt;
 use std::path::PathBuf;
 
 #[derive(Serialize, Debug, PartialEq)]
-#[serde(deny_unknown_fields)]
 pub struct Project {
     pub session_name: Option<String>,
     pub tmux_command: Option<String>,
@@ -227,6 +226,7 @@ impl<'de> Deserialize<'de> for Project {
         D: de::Deserializer<'de>,
     {
         #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
         struct ProjectProxy {
             #[serde(default, alias = "name")]
             pub session_name: Option<String>,
