@@ -95,7 +95,7 @@ fn project_check_fails_on_invalid_session_name() {
 #[test]
 fn project_deserializes_from_null() {
     let yaml = r#"
-        name: ~
+        ~
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
@@ -283,7 +283,7 @@ fn project_template_raises_error_on_invalid_value() {
         .err()
         .unwrap()
         .to_string()
-        .starts_with("invalid value for field 'template':"));
+        .contains("data did not match any variant of untagged enum TemplateProxy"));
 
     let yaml = r#"
         not_file: test.file
@@ -291,7 +291,11 @@ fn project_template_raises_error_on_invalid_value() {
 
     let result = serde_yaml::from_str::<ProjectTemplate>(yaml);
     assert!(result.is_err());
-    assert_eq!(result.err().unwrap().to_string(), "missing 'file' field");
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum TemplateProxy"));
 
     let yaml = r#"
         file: 42
@@ -299,10 +303,11 @@ fn project_template_raises_error_on_invalid_value() {
 
     let result = serde_yaml::from_str::<ProjectTemplate>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "expected file to be a string"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum TemplateProxy"));
 }
 
 #[test]
@@ -605,7 +610,7 @@ fn pane_raises_error_on_invalid_working_dir_value() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "expected working_dir to be a string or null"
+        "data did not match any variant of untagged enum PaneProxy"
     );
 }
 
@@ -650,7 +655,7 @@ fn pane_raises_error_on_invalid_split_value() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "expected split value to match v|h|vertical|horizontal"
+        "data did not match any variant of untagged enum PaneProxy"
     );
 }
 
@@ -675,7 +680,7 @@ fn pane_raises_error_on_invalid_split_from_value() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "expected split_from to be a positive integer"
+        "data did not match any variant of untagged enum PaneProxy"
     );
 }
 
@@ -710,7 +715,7 @@ fn pane_raises_error_on_invalid_split_size_value() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "expected split_size to be either a positive integer or a string"
+        "data did not match any variant of untagged enum PaneProxy"
     );
 }
 
@@ -779,7 +784,7 @@ fn pane_raises_error_on_invalid_commands_value() {
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "expected commands to be null, a string or a list of strings"
+        "data did not match any variant of untagged enum PaneProxy"
     );
 }
 

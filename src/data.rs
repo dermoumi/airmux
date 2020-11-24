@@ -1,8 +1,7 @@
 use crate::config::Config;
 use crate::utils::{parse_command, valid_tmux_identifier};
 
-use serde::{de, ser};
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use serde_yaml::Value;
 use shell_words::{quote, split};
 use shellexpand::tilde;
@@ -11,43 +10,20 @@ use std::error::Error;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct Project {
-    #[serde(default, alias = "name")]
     pub session_name: Option<String>,
-    #[serde(default)]
     pub tmux_command: Option<String>,
-    #[serde(default)]
     pub tmux_options: Option<String>,
-    #[serde(default, alias = "socket_name")]
     pub tmux_socket: Option<String>,
-    #[serde(default, alias = "root", deserialize_with = "Project::de_working_dir")]
     pub working_dir: Option<PathBuf>,
-    #[serde(
-        default = "Project::default_window_base_index",
-        deserialize_with = "Project::de_window_base_index"
-    )]
     pub window_base_index: usize,
-    #[serde(
-        default = "Project::default_pane_base_index",
-        deserialize_with = "Project::de_pane_base_index"
-    )]
     pub pane_base_index: usize,
-    #[serde(default)]
     pub startup_window: StartupWindow,
-    #[serde(default, deserialize_with = "Project::de_commands")]
     pub on_create: Vec<String>,
-    #[serde(default, deserialize_with = "Project::de_commands")]
     pub post_create: Vec<String>,
-    #[serde(default = "Project::default_attach")]
     pub attach: bool,
-    #[serde(default)]
     pub template: ProjectTemplate,
-    #[serde(
-        default = "Project::default_windows",
-        deserialize_with = "Project::de_windows",
-        alias = "window"
-    )]
     pub windows: Vec<Window>,
 }
 
@@ -179,17 +155,6 @@ impl Project {
         vec![Window::default()]
     }
 
-    fn de_working_dir<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        let opt: Option<PathBuf> = de::Deserialize::deserialize(deserializer)?;
-        Ok(Some(PathBuf::from(opt.map_or_else(
-            || tilde("~").to_string(),
-            |path| tilde(&path.to_string_lossy()).to_string(),
-        ))))
-    }
-
     fn de_window_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
     where
         D: de::Deserializer<'de>,
@@ -210,56 +175,20 @@ impl Project {
     where
         D: de::Deserializer<'de>,
     {
-        // #[derive(Deserialize)]
-        // #[serde(untagged)]
-        // enum WindowList {
-        //     List { windows: Vec<Window> },
-        //     Single { window: Window },
-        //     Empty {},
-        // };
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum WindowList {
+            List(Vec<Window>),
+            Single(Window),
+            Empty,
+        };
 
-        // let window_list: WindowList = de::Deserialize::deserialize(deserializer)?;
+        let window_list: WindowList = de::Deserialize::deserialize(deserializer)?;
 
-        // Ok(match window_list {
-        //     WindowList::List { windows } => windows,
-        //     WindowList::Single { window } => vec![window],
-        //     WindowList::Empty {} => vec![Window::default()],
-        // })
-
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        match val.as_sequence() {
-            Some(seq) => Self::de_windows_from_sequence(seq).map_err(de::Error::custom),
-            None => Ok(vec![Window::from_value(&val).map_err(de::Error::custom)?]),
-        }
-    }
-
-    fn de_windows_from_sequence(seq: &serde_yaml::Sequence) -> Result<Vec<Window>, Box<dyn Error>> {
-        seq.into_iter()
-            .map(|val| Window::from_value(val))
-            .collect::<Result<Vec<_>, _>>()
-    }
-
-    fn de_commands<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        Self::de_commands_from_val(&val).map_err(de::Error::custom)
-    }
-
-    fn de_commands_from_val(val: &Value) -> Result<Vec<String>, Box<dyn Error>> {
-        Ok(match val {
-            s if s.is_sequence() => s
-                .as_sequence()
-                .unwrap()
-                .into_iter()
-                .map(|x| serde_yaml::from_value::<String>(x.clone()).map(|s| s.replace("#", "##")))
-                .collect::<Result<Vec<_>, _>>()?,
-            s if s.is_string() => vec![s.as_str().unwrap().replace("#", "##")],
-            n if n.is_null() => vec![],
-            _ => Err("expected commands to be null, a string or a list of strings")?,
+        Ok(match window_list {
+            WindowList::List(windows) => windows,
+            WindowList::Single(window) => vec![window],
+            WindowList::Empty => vec![Window::default()],
         })
     }
 }
@@ -290,33 +219,80 @@ impl From<Option<Project>> for Project {
     }
 }
 
+impl<'de> Deserialize<'de> for Project {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        #[derive(Deserialize, Debug)]
+        struct ProjectProxy {
+            #[serde(default, alias = "name")]
+            pub session_name: Option<String>,
+            #[serde(default)]
+            pub tmux_command: Option<String>,
+            #[serde(default)]
+            pub tmux_options: Option<String>,
+            #[serde(default, alias = "socket_name")]
+            pub tmux_socket: Option<String>,
+            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
+            pub working_dir: Option<PathBuf>,
+            #[serde(
+                default = "Project::default_window_base_index",
+                deserialize_with = "Project::de_window_base_index"
+            )]
+            pub window_base_index: usize,
+            #[serde(
+                default = "Project::default_pane_base_index",
+                deserialize_with = "Project::de_pane_base_index"
+            )]
+            pub pane_base_index: usize,
+            #[serde(default)]
+            pub startup_window: StartupWindow,
+            #[serde(default, deserialize_with = "de_command_list")]
+            pub on_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            pub post_create: Vec<String>,
+            #[serde(default = "Project::default_attach")]
+            pub attach: bool,
+            #[serde(default)]
+            pub template: ProjectTemplate,
+            #[serde(
+                default = "Project::default_windows",
+                deserialize_with = "Project::de_windows",
+                alias = "window"
+            )]
+            pub windows: Vec<Window>,
+        }
+
+        let opt: Option<ProjectProxy> = de::Deserialize::deserialize(deserializer)?;
+
+        Ok(match opt {
+            None => Self::default(),
+            Some(project) => Self {
+                session_name: project.session_name,
+                tmux_command: project.tmux_command,
+                tmux_options: project.tmux_options,
+                tmux_socket: project.tmux_socket,
+                working_dir: project.working_dir,
+                window_base_index: project.window_base_index,
+                pane_base_index: project.pane_base_index,
+                startup_window: project.startup_window,
+                on_create: project.on_create,
+                post_create: project.post_create,
+                attach: project.attach,
+                template: project.template,
+                windows: project.windows,
+            },
+        })
+    }
+}
+
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ProjectTemplate {
     Raw(String),
     File(PathBuf),
     Default,
-}
-
-impl ProjectTemplate {
-    fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
-        match val {
-            v if v.is_null() => Ok(Self::Default),
-            v if v.is_string() => Ok(v.as_str().unwrap().into()),
-            v if v.is_mapping() => Self::from_mapping(v.as_mapping().unwrap()),
-            v => Err(format!("invalid value for field 'template': {:?}", v).into()),
-        }
-    }
-
-    fn from_mapping(map: &serde_yaml::Mapping) -> Result<Self, Box<dyn Error>> {
-        match map.get(&"file".into()) {
-            Some(filename) => match filename.as_str() {
-                Some(path) => Ok(Self::File(path.into())),
-                _ => Err("expected file to be a string".into()),
-            },
-            _ => Err("missing 'file' field".into()),
-        }
-    }
 }
 
 impl Default for ProjectTemplate {
@@ -336,69 +312,34 @@ impl<'de> Deserialize<'de> for ProjectTemplate {
     where
         D: de::Deserializer<'de>,
     {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum TemplateProxy {
+            File { file: PathBuf },
+            Raw(String),
+            Default,
+        }
 
-        Self::from_value(&val).map_err(de::Error::custom)
+        let proxy: TemplateProxy = de::Deserialize::deserialize(deserializer)?;
+        Ok(match proxy {
+            TemplateProxy::File { file } => Self::File(file),
+            TemplateProxy::Raw(content) => Self::Raw(content),
+            TemplateProxy::Default => Self::Default,
+        })
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(untagged)]
 pub enum StartupWindow {
+    Default,
     Name(String),
     Index(usize),
-    Default,
-}
-
-impl StartupWindow {
-    fn from_value(val: &Value) -> Result<Self, Box<dyn Error>> {
-        match val {
-            v if v.is_null() => Ok(Self::Default),
-            v if v.is_string() => Ok(v.as_str().unwrap().into()),
-            v if v.is_number() => Ok((v.as_u64().unwrap() as usize).into()),
-            v => Err(format!("invalid value for field 'template': {:?}", v).into()),
-        }
-    }
 }
 
 impl Default for StartupWindow {
     fn default() -> Self {
         StartupWindow::Default
-    }
-}
-
-impl From<&str> for StartupWindow {
-    fn from(name: &str) -> Self {
-        Self::Name(name.into())
-    }
-}
-
-impl From<usize> for StartupWindow {
-    fn from(name: usize) -> Self {
-        Self::Index(name)
-    }
-}
-
-impl<'de> Deserialize<'de> for StartupWindow {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        Self::from_value(&val).map_err(de::Error::custom)
-    }
-}
-
-impl ser::Serialize for StartupWindow {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        match self {
-            Self::Name(name) => serializer.serialize_str(name),
-            Self::Index(index) => serializer.serialize_u64(*index as u64),
-            _ => serializer.serialize_none(),
-        }
     }
 }
 
@@ -611,21 +552,13 @@ impl Default for Window {
 
 #[derive(Serialize, Default, Debug, PartialEq)]
 pub struct Pane {
-    #[serde(default)]
     pub working_dir: Option<PathBuf>,
-    #[serde(default)]
     pub split: Option<PaneSplit>,
-    #[serde(default)]
     pub split_from: Option<usize>,
-    #[serde(default)]
     pub split_size: Option<String>,
-    #[serde(default)]
     pub clear: bool,
-    #[serde(default)]
     pub on_create: Vec<String>,
-    #[serde(default)]
     pub post_create: Vec<String>,
-    #[serde(default)]
     pub commands: Vec<String>,
 }
 
@@ -657,9 +590,9 @@ impl Pane {
                 map.get(&"working_dir".into())
                     .map_or_else(|| map.get(&"root".into()), Option::from),
             )?,
-            split: Self::de_split(map.get(&"split".into()))?,
+            split: Self::de_split_old(map.get(&"split".into()))?,
             split_from: Self::de_split_from(map.get(&"split_from".into()))?,
-            split_size: Self::de_split_size(map.get(&"split_size".into()))?,
+            split_size: Self::de_split_size_old(map.get(&"split_size".into()))?,
             clear: Self::de_clear(map.get(&"clear".into()))?,
             on_create: Self::de_commands(map.get(&"on_create".into()))?,
             post_create: Self::de_commands(map.get(&"post_create".into()))?,
@@ -681,7 +614,7 @@ impl Pane {
         })
     }
 
-    fn de_split(val: Option<&Value>) -> Result<Option<PaneSplit>, Box<dyn Error>> {
+    fn de_split_old(val: Option<&Value>) -> Result<Option<PaneSplit>, Box<dyn Error>> {
         Ok(match val {
             Some(x) => Some(match x.as_str() {
                 Some(x) if ["v", "vertical"].contains(&x.to_lowercase().as_str()) => {
@@ -706,7 +639,7 @@ impl Pane {
         })
     }
 
-    fn de_split_size(val: Option<&Value>) -> Result<Option<String>, Box<dyn Error>> {
+    fn de_split_size_old(val: Option<&Value>) -> Result<Option<String>, Box<dyn Error>> {
         Ok(match val {
             Some(x) => Some(match x {
                 x if x.is_u64() => x.as_u64().unwrap().to_string(),
@@ -747,6 +680,26 @@ impl Pane {
             _ => Err("expected commands to be null, a string or a list of strings")?,
         })
     }
+
+    fn de_split_size<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum SplitSize {
+            Percent(String),
+            Cells(usize),
+            None,
+        };
+
+        let size: SplitSize = de::Deserialize::deserialize(deserializer)?;
+        Ok(match size {
+            SplitSize::Percent(percent) => Some(percent),
+            SplitSize::Cells(size) => Some(size.to_string()),
+            SplitSize::None => None,
+        })
+    }
 }
 
 impl From<&str> for Pane {
@@ -763,18 +716,115 @@ impl<'de> Deserialize<'de> for Pane {
     where
         D: de::Deserializer<'de>,
     {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
+        #[derive(Deserialize, Debug)]
+        struct PaneDefinition {
+            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
+            pub working_dir: Option<PathBuf>,
+            #[serde(default)]
+            pub split: Option<PaneSplit>,
+            #[serde(default)]
+            pub split_from: Option<usize>,
+            #[serde(default, deserialize_with = "Pane::de_split_size")]
+            pub split_size: Option<String>,
+            #[serde(default)]
+            pub clear: bool,
+            #[serde(default, deserialize_with = "de_command_list")]
+            pub on_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            pub post_create: Vec<String>,
+            #[serde(default, alias = "command", deserialize_with = "de_command_list")]
+            pub commands: Vec<String>,
+        }
 
-        Self::from_value(&val).map_err(de::Error::custom)
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum PaneProxy {
+            Definition(PaneDefinition),
+            CommandList(Vec<String>),
+            Command(String),
+            None,
+        }
+
+        let proxy: PaneProxy = de::Deserialize::deserialize(deserializer)?;
+        Ok(match proxy {
+            PaneProxy::None => Self::default(),
+            PaneProxy::CommandList(list) => Self {
+                commands: list,
+                ..Self::default()
+            },
+            PaneProxy::Command(cmd) => Self {
+                commands: vec![cmd],
+                ..Self::default()
+            },
+            PaneProxy::Definition(proxy) => Self {
+                working_dir: proxy.working_dir,
+                split: proxy.split,
+                split_from: proxy.split_from,
+                split_size: proxy.split_size,
+                clear: proxy.clear,
+                on_create: proxy.on_create,
+                post_create: proxy.post_create,
+                commands: proxy.commands,
+            },
+        })
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq)]
 pub enum PaneSplit {
     #[serde(rename = "horizontal")]
     Horizontal,
     #[serde(rename = "vertical")]
     Vertical,
+}
+
+impl<'de> Deserialize<'de> for PaneSplit {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let value: String = de::Deserialize::deserialize(deserializer)?;
+        Ok(match value {
+            s if ["v", "vertical"].contains(&s.to_lowercase().as_str()) => PaneSplit::Vertical,
+            s if ["h", "horizontal"].contains(&s.to_lowercase().as_str()) => PaneSplit::Horizontal,
+            _ => Err(de::Error::custom(format!(
+                "expected split value {:?} to match v|h|vertical|horizontal",
+                value
+            )))?,
+        })
+    }
+}
+
+fn de_working_dir<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    let opt: Option<PathBuf> = de::Deserialize::deserialize(deserializer)?;
+    Ok(Some(PathBuf::from(opt.map_or_else(
+        || tilde("~").to_string(),
+        |path| tilde(&path.to_string_lossy()).to_string(),
+    ))))
+}
+
+fn de_command_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    #[derive(Deserialize, Debug)]
+    #[serde(untagged)]
+    enum CommandList {
+        List(Vec<String>),
+        Single(String),
+        Empty,
+    };
+
+    let command_list: CommandList = de::Deserialize::deserialize(deserializer)?;
+
+    Ok(match command_list {
+        CommandList::List(commands) => commands.iter().map(|s| s.replace("#", "##")).collect(),
+        CommandList::Single(command) => vec![command.replace("#", "##")],
+        CommandList::Empty => vec![],
+    })
 }
 
 #[cfg(test)]
