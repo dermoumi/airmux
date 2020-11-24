@@ -128,10 +128,40 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     run-shell {{ cmd_quoted }}
     {%- endfor %}
 
+    {%- for command in project.pane_commands %}
+    {%- set cmd_quoted = command | quote %}
+    {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
+    run-shell {{ send_keys_cmd }}
+    {%- endfor %}
+
+    {%- for command in window.pane_commands %}
+    {%- set cmd_quoted = command | quote %}
+    {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
+    run-shell {{ send_keys_cmd }}
+    {%- endfor %}
+
     {%- for command in pane.commands %}
     {%- set cmd_quoted = command | quote %}
     {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
     run-shell {{ send_keys_cmd }}
+    {%- endfor %}
+
+    {%- for command in project.post_pane_create %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | replace(from="__PANE__", to=target_pane)
+                                 | quote %}
+    run-shell {{ cmd_quoted }}
+    {%- endfor %}
+
+    {%- for command in window.post_pane_create %}
+    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
+                                 | replace(from="__SESSION__", to=session_name)
+                                 | replace(from="__WINDOW__", to=target_window)
+                                 | replace(from="__PANE__", to=target_pane)
+                                 | quote %}
+    run-shell {{ cmd_quoted }}
     {%- endfor %}
 
     {%- for command in pane.post_create %}

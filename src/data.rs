@@ -25,6 +25,8 @@ pub struct Project {
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
     pub on_pane_create: Vec<String>,
+    pub post_pane_create: Vec<String>,
+    pub pane_commands: Vec<String>,
     pub attach: bool,
     pub template: ProjectTemplate,
     pub windows: Vec<Window>,
@@ -207,6 +209,8 @@ impl Default for Project {
             on_create: vec![],
             post_create: vec![],
             on_pane_create: vec![],
+            post_pane_create: vec![],
+            pane_commands: vec![],
             attach: true,
             template: ProjectTemplate::default(),
             windows: vec![Window::default()],
@@ -256,8 +260,12 @@ impl<'de> Deserialize<'de> for Project {
             on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_create: Vec<String>,
-            #[serde(default, alias = "pre_window", deserialize_with = "de_command_list")]
+            #[serde(default, deserialize_with = "de_command_list")]
             on_pane_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            post_pane_create: Vec<String>,
+            #[serde(default, alias = "pre_window", deserialize_with = "de_command_list")]
+            pane_commands: Vec<String>,
             #[serde(default, alias = "tmux_attached")]
             attach: Option<bool>,
             #[serde(default, alias = "tmux_detached")]
@@ -303,6 +311,8 @@ impl<'de> Deserialize<'de> for Project {
                     on_create: project.on_create,
                     post_create: project.post_create,
                     on_pane_create: project.on_pane_create,
+                    post_pane_create: project.post_pane_create,
+                    pane_commands: project.pane_commands,
                     attach,
                     template: project.template,
                     windows: project.windows,
@@ -376,6 +386,8 @@ pub struct Window {
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
     pub on_pane_create: Vec<String>,
+    pub post_pane_create: Vec<String>,
+    pub pane_commands: Vec<String>,
     pub panes: Vec<Pane>,
 }
 
@@ -501,8 +513,12 @@ impl<'de> Visitor<'de> for WindowVisitor {
             on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_create: Vec<String>,
-            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            #[serde(default, deserialize_with = "de_command_list")]
             on_pane_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            post_pane_create: Vec<String>,
+            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            pane_commands: Vec<String>,
             #[serde(default)]
             panes: Vec<Pane>,
         }
@@ -520,8 +536,12 @@ impl<'de> Visitor<'de> for WindowVisitor {
             on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_create: Vec<String>,
-            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            #[serde(default, deserialize_with = "de_command_list")]
             on_pane_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            post_pane_create: Vec<String>,
+            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            pane_commands: Vec<String>,
             #[serde(default)]
             panes: Vec<Pane>,
         }
@@ -568,6 +588,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.on_create = def.on_create;
                             window.post_create = def.post_create;
                             window.on_pane_create = def.on_pane_create;
+                            window.post_pane_create = def.post_pane_create;
+                            window.pane_commands = def.pane_commands;
                             window.panes = def.panes;
                         }
                         WindowOption::Definition(def) => {
@@ -576,6 +598,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.on_create = def.on_create;
                             window.post_create = def.post_create;
                             window.on_pane_create = def.on_pane_create;
+                            window.post_pane_create = def.post_pane_create;
+                            window.pane_commands = def.pane_commands;
                             window.panes = def.panes;
                         }
                     }
@@ -588,6 +612,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "on_create" => window.on_create = vec![],
                         "post_create" => window.post_create = vec![],
                         "on_pane_create" => window.on_pane_create = vec![],
+                        "post_pane_create" => window.post_pane_create = vec![],
+                        "pane_commands" => window.pane_commands = vec![],
                         "panes" => window.panes = vec![Pane::default()],
                         _ => {
                             if !first_entry {
@@ -608,8 +634,10 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "layout" => window.layout = Some(val),
                         "on_create" => window.on_create = vec![process_command(val)],
                         "post_create" => window.post_create = vec![process_command(val)],
-                        "on_pane_create" | "pre" => {
-                            window.on_pane_create = vec![process_command(val)]
+                        "on_pane_create" => window.on_pane_create = vec![process_command(val)],
+                        "post_pane_create" => window.post_pane_create = vec![process_command(val)],
+                        "pane_commands" | "pre" => {
+                            window.pane_commands = vec![process_command(val)]
                         }
                         "panes" => window.panes = vec![Pane::from(val)],
                         _ => {
@@ -627,8 +655,12 @@ impl<'de> Visitor<'de> for WindowVisitor {
                     WindowOption::CommandList(commands) => match key.as_str() {
                         "on_create" => window.on_create = process_command_list(commands),
                         "post_create" => window.post_create = process_command_list(commands),
-                        "on_pane_create" | "pre" => {
-                            window.on_pane_create = process_command_list(commands)
+                        "on_pane_create" => window.on_pane_create = process_command_list(commands),
+                        "post_pane_create" => {
+                            window.post_pane_create = process_command_list(commands)
+                        }
+                        "pane_commands" | "pre" => {
+                            window.pane_commands = process_command_list(commands)
                         }
                         "panes" => {
                             window.panes = commands
@@ -723,6 +755,8 @@ impl Default for Window {
             on_create: vec![],
             post_create: vec![],
             on_pane_create: vec![],
+            post_pane_create: vec![],
+            pane_commands: vec![],
             panes: vec![Pane::default()],
         }
     }
