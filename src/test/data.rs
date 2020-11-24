@@ -93,7 +93,7 @@ fn project_check_fails_on_invalid_session_name() {
 }
 
 #[test]
-fn project_deserializes_from_minimal_yaml() {
+fn project_deserializes_from_null() {
     let yaml = r#"
         name: ~
     "#;
@@ -194,7 +194,8 @@ fn window_deserializes_working_dir_null_as_home() {
 #[test]
 fn project_raises_error_on_invalid_working_dir_value() {
     let yaml = r#"
-        working_dir: 42
+        working_dir:
+          - path_in_a_list
     "#;
 
     let result = serde_yaml::from_str::<Project>(yaml);
@@ -203,7 +204,7 @@ fn project_raises_error_on_invalid_working_dir_value() {
         .err()
         .unwrap()
         .to_string()
-        .starts_with("expected working_dir to be a string or null"));
+        .contains("invalid type: sequence, expected path string"));
 }
 
 #[test]

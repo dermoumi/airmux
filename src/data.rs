@@ -183,48 +183,49 @@ impl Project {
     where
         D: de::Deserializer<'de>,
     {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        match val {
-            p if p.is_string() => Ok(Some(tilde(p.as_str().unwrap()).to_string().into())),
-            p if p.is_null() => Ok(Some(tilde("~").to_string().into())),
-            _ => Err("expected working_dir to be a string or null"),
-        }
-        .map_err(de::Error::custom)
+        let opt: Option<PathBuf> = de::Deserialize::deserialize(deserializer)?;
+        Ok(Some(PathBuf::from(opt.map_or_else(
+            || tilde("~").to_string(),
+            |path| tilde(&path.to_string_lossy()).to_string(),
+        ))))
     }
 
     fn de_window_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        match val {
-            p if p.is_u64() => Ok(p.as_u64().unwrap() as usize),
-            p if p.is_null() => Ok(Self::default_window_base_index()),
-            _ => Err("expected window_base_index to be a number or null"),
-        }
-        .map_err(de::Error::custom)
+        let opt: Option<usize> = de::Deserialize::deserialize(deserializer)?;
+        Ok(opt.unwrap_or(Self::default_window_base_index()))
     }
 
     fn de_pane_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        let val: Value = de::Deserialize::deserialize(deserializer)?;
-
-        match val {
-            p if p.is_u64() => Ok(p.as_u64().unwrap() as usize),
-            p if p.is_null() => Ok(Self::default_pane_base_index()),
-            _ => Err("expected pane_base_index to be a number or null"),
-        }
-        .map_err(de::Error::custom)
+        let opt: Option<usize> = de::Deserialize::deserialize(deserializer)?;
+        Ok(opt.unwrap_or(Self::default_pane_base_index()))
     }
 
     fn de_windows<'de, D>(deserializer: D) -> Result<Vec<Window>, D::Error>
     where
         D: de::Deserializer<'de>,
     {
+        // #[derive(Deserialize)]
+        // #[serde(untagged)]
+        // enum WindowList {
+        //     List { windows: Vec<Window> },
+        //     Single { window: Window },
+        //     Empty {},
+        // };
+
+        // let window_list: WindowList = de::Deserialize::deserialize(deserializer)?;
+
+        // Ok(match window_list {
+        //     WindowList::List { windows } => windows,
+        //     WindowList::Single { window } => vec![window],
+        //     WindowList::Empty {} => vec![Window::default()],
+        // })
+
         let val: Value = de::Deserialize::deserialize(deserializer)?;
 
         match val.as_sequence() {
@@ -280,6 +281,12 @@ impl Default for Project {
             template: ProjectTemplate::default(),
             windows: vec![Window::default()],
         }
+    }
+}
+
+impl From<Option<Project>> for Project {
+    fn from(project: Option<Project>) -> Self {
+        project.unwrap_or_default()
     }
 }
 
@@ -458,6 +465,17 @@ impl Window {
     }
 
     fn from_mapping(map: &serde_yaml::Mapping) -> Result<Self, Box<dyn Error>> {
+        // TODO: Implement better parsing for this
+        let _reserved_names = [
+            "name",
+            "working_dir",
+            "root",
+            "layout",
+            "on_create",
+            "post_create",
+            "panes",
+        ];
+
         if map.len() != 1 {
             Err("expected window definition to be a single-value hashmap")?;
         }
