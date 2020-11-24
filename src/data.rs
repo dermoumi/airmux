@@ -12,6 +12,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 #[derive(Serialize, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Project {
     pub session_name: Option<String>,
     pub tmux_command: Option<String>,
@@ -346,17 +347,11 @@ impl Default for StartupWindow {
 
 #[derive(Serialize, Debug, PartialEq)]
 pub struct Window {
-    #[serde(default)]
     pub name: Option<String>,
-    #[serde(default, alias = "root")]
     pub working_dir: Option<PathBuf>,
-    #[serde(default)]
     pub layout: Option<String>,
-    #[serde(default)]
     pub on_create: Vec<String>,
-    #[serde(default)]
     pub post_create: Vec<String>,
-    #[serde(default)]
     pub panes: Vec<Pane>,
 }
 
@@ -467,6 +462,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
         type WindowKeyType = Option<String>;
 
         #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
         struct WindowDef {
             #[serde(default)]
             pub name: Option<String>,
@@ -553,8 +549,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "name" => window.name = Some(string),
                         "working_dir" | "root" => window.working_dir = Some(PathBuf::from(string)),
                         "layout" => window.layout = Some(string),
-                        "on_create" => window.on_create = vec![string],
-                        "post_create" => window.post_create = vec![string],
+                        "on_create" => window.on_create = vec![process_command(string)],
+                        "post_create" => window.post_create = vec![process_command(string)],
                         "panes" => window.panes = vec![Pane::from(string.as_str())],
                         _ => {
                             if !first_entry {
@@ -569,13 +565,17 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         }
                     },
                     WindowOption::CommandList(commands) => match key.as_str() {
-                        "on_create" => window.on_create = commands,
-                        "post_create" => window.post_create = commands,
+                        "on_create" => {
+                            window.on_create = commands.into_iter().map(process_command).collect()
+                        }
+                        "post_create" => {
+                            window.post_create = commands.into_iter().map(process_command).collect()
+                        }
                         "panes" => {
-                            window.panes = vec![Pane {
-                                commands,
-                                ..Pane::default()
-                            }]
+                            window.panes = commands
+                                .into_iter()
+                                .map(|command| Pane::from(command.as_str()))
+                                .collect()
                         }
                         _ => {
                             if !first_entry {
@@ -701,7 +701,7 @@ impl Pane {
 impl From<&str> for Pane {
     fn from(command: &str) -> Self {
         Self {
-            commands: vec![command.into()],
+            commands: vec![process_command(command.into())],
             ..Self::default()
         }
     }
@@ -710,7 +710,7 @@ impl From<&str> for Pane {
 impl From<Vec<String>> for Pane {
     fn from(commands: Vec<String>) -> Self {
         Self {
-            commands,
+            commands: commands.into_iter().map(process_command).collect(),
             ..Self::default()
         }
     }
@@ -825,10 +825,14 @@ where
 
     let command_list: CommandList = de::Deserialize::deserialize(deserializer)?;
     Ok(match command_list {
-        CommandList::List(commands) => commands.iter().map(|s| s.replace("#", "##")).collect(),
-        CommandList::Single(command) => vec![command.replace("#", "##")],
+        CommandList::List(commands) => commands.into_iter().map(process_command).collect(),
+        CommandList::Single(command) => vec![process_command(command)],
         CommandList::Empty => vec![],
     })
+}
+
+fn process_command(command: String) -> String {
+    command.replace("#", "##")
 }
 
 #[cfg(test)]
