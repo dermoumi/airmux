@@ -148,10 +148,6 @@ impl Project {
         1
     }
 
-    fn default_attach() -> bool {
-        true
-    }
-
     fn default_windows() -> Vec<Window> {
         vec![Window::default()]
     }
@@ -254,8 +250,10 @@ impl<'de> Deserialize<'de> for Project {
             pub on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             pub post_create: Vec<String>,
-            #[serde(default = "Project::default_attach")]
-            pub attach: bool,
+            #[serde(default, alias = "tmux_attached")]
+            pub attach: Option<bool>,
+            #[serde(default, alias = "tmux_detached")]
+            pub detached: Option<bool>,
             #[serde(default)]
             pub template: ProjectTemplate,
             #[serde(
@@ -270,21 +268,36 @@ impl<'de> Deserialize<'de> for Project {
 
         Ok(match opt {
             None => Self::default(),
-            Some(project) => Self {
-                session_name: project.session_name,
-                tmux_command: project.tmux_command,
-                tmux_options: project.tmux_options,
-                tmux_socket: project.tmux_socket,
-                working_dir: project.working_dir,
-                window_base_index: project.window_base_index,
-                pane_base_index: project.pane_base_index,
-                startup_window: project.startup_window,
-                on_create: project.on_create,
-                post_create: project.post_create,
-                attach: project.attach,
-                template: project.template,
-                windows: project.windows,
-            },
+            Some(project) => {
+                let attach = match project.attach {
+                    Some(attach) => match project.detached {
+                        Some(_) => Err(de::Error::custom(
+                            "cannot set both 'attach' and 'detached' fields",
+                        ))?,
+                        None => attach,
+                    },
+                    None => match project.detached {
+                        Some(detached) => !detached,
+                        None => true,
+                    },
+                };
+
+                Self {
+                    session_name: project.session_name,
+                    tmux_command: project.tmux_command,
+                    tmux_options: project.tmux_options,
+                    tmux_socket: project.tmux_socket,
+                    working_dir: project.working_dir,
+                    window_base_index: project.window_base_index,
+                    pane_base_index: project.pane_base_index,
+                    startup_window: project.startup_window,
+                    on_create: project.on_create,
+                    post_create: project.post_create,
+                    attach,
+                    template: project.template,
+                    windows: project.windows,
+                }
+            }
         })
     }
 }
