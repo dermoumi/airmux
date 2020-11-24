@@ -21,6 +21,7 @@ pub struct Project {
     pub window_base_index: usize,
     pub pane_base_index: usize,
     pub startup_window: StartupWindow,
+    pub startup_pane: Option<usize>,
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
     pub on_pane_create: Vec<String>,
@@ -202,6 +203,7 @@ impl Default for Project {
             window_base_index: Self::default_window_base_index(),
             pane_base_index: Self::default_pane_base_index(),
             startup_window: StartupWindow::default(),
+            startup_pane: None,
             on_create: vec![],
             post_create: vec![],
             on_pane_create: vec![],
@@ -248,6 +250,8 @@ impl<'de> Deserialize<'de> for Project {
             pane_base_index: usize,
             #[serde(default)]
             startup_window: StartupWindow,
+            #[serde(default)]
+            startup_pane: Option<usize>,
             #[serde(default, deserialize_with = "de_command_list")]
             on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
@@ -295,6 +299,7 @@ impl<'de> Deserialize<'de> for Project {
                     window_base_index: project.window_base_index,
                     pane_base_index: project.pane_base_index,
                     startup_window: project.startup_window,
+                    startup_pane: project.startup_pane,
                     on_create: project.on_create,
                     post_create: project.post_create,
                     on_pane_create: project.on_pane_create,

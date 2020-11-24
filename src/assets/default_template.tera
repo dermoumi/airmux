@@ -188,6 +188,10 @@ if-shell -F '#{__RMUX_SESSION_CREATED}' {
     {% set startup_window = project.session_name ~ ':^' | quote -%}
     {% endif -%}
     select-window -t {{ startup_window }}
+
+    {%- if project.startup_pane or project.startup_pane == 0 %}
+    select-pane -t {{ project.startup_pane }}
+    {%- endif %}
 }
 
 # Run post_create commands
