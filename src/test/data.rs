@@ -607,15 +607,17 @@ fn pane_deserializes_working_dir_null_as_home() {
 #[test]
 fn pane_raises_error_on_invalid_working_dir_value() {
     let yaml = r#"
-        working_dir: 42
+        pane:
+          working_dir: 42
     "#;
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "data did not match any variant of untagged enum PaneProxy"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum PaneOption"));
 }
 
 #[test]
@@ -657,10 +659,11 @@ fn pane_raises_error_on_invalid_split_value() {
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "data did not match any variant of untagged enum PaneProxy"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("expected split value \"o\" to match v|h|vertical|horizontal"));
 }
 
 #[test]
@@ -682,10 +685,11 @@ fn pane_raises_error_on_invalid_split_from_value() {
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "data did not match any variant of untagged enum PaneProxy"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum PaneOption"));
 }
 
 #[test]
@@ -717,10 +721,11 @@ fn pane_raises_error_on_invalid_split_size_value() {
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "data did not match any variant of untagged enum PaneProxy"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum PaneOption"));
 }
 
 #[test]
@@ -781,15 +786,17 @@ fn pane_deserializes_sequence_commands() {
 #[test]
 fn pane_raises_error_on_invalid_commands_value() {
     let yaml = r#"
-        command: 0
+        command:
+          map: as_a_command
     "#;
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    assert_eq!(
-        result.err().unwrap().to_string(),
-        "data did not match any variant of untagged enum PaneProxy"
-    );
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum PaneOption"));
 }
 
 #[test]

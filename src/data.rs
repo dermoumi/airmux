@@ -553,7 +553,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                 Some(key) => match value {
                     WindowOption::None => match key.as_str() {
                         "name" | "title" => window.name = None,
-                        "working_dir" | "root" => window.working_dir = None,
+                        "working_dir" | "root" => window.working_dir = Some(home_working_dir()),
                         "layout" => window.layout = None,
                         "on_create" => window.on_create = vec![],
                         "post_create" => window.post_create = vec![],
@@ -571,7 +571,9 @@ impl<'de> Visitor<'de> for WindowVisitor {
                     },
                     WindowOption::String(val) => match key.as_str() {
                         "name" | "title" => window.name = Some(val),
-                        "working_dir" | "root" => window.working_dir = Some(PathBuf::from(val)),
+                        "working_dir" | "root" => {
+                            window.working_dir = Some(process_working_dir(val.as_str()))
+                        }
                         "layout" => window.layout = Some(val),
                         "on_create" => window.on_create = vec![process_command(val)],
                         "post_create" => window.post_create = vec![process_command(val)],
@@ -917,7 +919,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                 Some(key) => match val {
                     PaneOption::None => match key.as_str() {
                         "name" | "title" => pane.name = None,
-                        "working_dir" | "root" => pane.working_dir = None,
+                        "working_dir" | "root" => pane.working_dir = Some(home_working_dir()),
                         "split" => pane.split = None,
                         "split_from" => pane.split_from = None,
                         "split_size" => pane.split_size = None,
@@ -950,7 +952,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     PaneOption::Number(val) => match key.as_str() {
                         "name" | "title" => pane.name = Some(val.to_string()),
                         "working_dir" | "root" => {
-                            pane.working_dir = Some(PathBuf::from(val.to_string()))
+                            pane.working_dir = Some(process_working_dir(val.to_string().as_str()))
                         }
                         "split_from" => pane.split_from = Some(val),
                         "split_size" => pane.split_size = Some(val.to_string()),
@@ -968,7 +970,9 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     },
                     PaneOption::String(val) => match key.as_str() {
                         "name" | "title" => pane.name = Some(val),
-                        "working_dir" | "root" => pane.working_dir = Some(PathBuf::from(val)),
+                        "working_dir" | "root" => {
+                            pane.working_dir = Some(process_working_dir(val.as_str()))
+                        }
                         "split" => {
                             pane.split = Some(match val {
                                 s if ["v", "vertical"].contains(&s.to_lowercase().as_str()) => {
@@ -1097,10 +1101,10 @@ where
     D: de::Deserializer<'de>,
 {
     let opt: Option<PathBuf> = de::Deserialize::deserialize(deserializer)?;
-    Ok(Some(PathBuf::from(opt.map_or_else(
-        || tilde("~").to_string(),
-        |path| tilde(&path.to_string_lossy()).to_string(),
-    ))))
+    Ok(Some(opt.map_or_else(
+        || home_working_dir(),
+        |path| process_working_dir(&path.to_string_lossy()),
+    )))
 }
 
 fn de_command_list<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -1121,6 +1125,14 @@ where
         CommandList::Single(command) => vec![process_command(command)],
         CommandList::Empty => vec![],
     })
+}
+
+fn process_working_dir(str_path: &str) -> PathBuf {
+    PathBuf::from(tilde(str_path).to_string())
+}
+
+fn home_working_dir() -> PathBuf {
+    PathBuf::from(tilde("~").to_string())
 }
 
 fn process_command(command: String) -> String {
