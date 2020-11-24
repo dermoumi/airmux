@@ -419,7 +419,6 @@ impl From<Vec<String>> for Window {
 }
 
 struct WindowVisitor;
-
 impl<'de> Visitor<'de> for WindowVisitor {
     type Value = Window;
 
@@ -470,18 +469,33 @@ impl<'de> Visitor<'de> for WindowVisitor {
         #[derive(Deserialize, Debug)]
         #[serde(deny_unknown_fields)]
         struct WindowDef {
-            #[serde(default)]
-            pub name: Option<String>,
             #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
-            pub working_dir: Option<PathBuf>,
+            working_dir: Option<PathBuf>,
             #[serde(default)]
-            pub layout: Option<String>,
+            layout: Option<String>,
             #[serde(default, deserialize_with = "de_command_list")]
-            pub on_create: Vec<String>,
+            on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
-            pub post_create: Vec<String>,
+            post_create: Vec<String>,
             #[serde(default)]
-            pub panes: Vec<Pane>,
+            panes: Vec<Pane>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct WindowDefWithName {
+            #[serde(alias = "title")]
+            name: Option<String>,
+            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
+            working_dir: Option<PathBuf>,
+            #[serde(default)]
+            layout: Option<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            on_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            post_create: Vec<String>,
+            #[serde(default)]
+            panes: Vec<Pane>,
         }
 
         #[derive(Deserialize, Debug)]
@@ -492,6 +506,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
             CommandList(Vec<String>),
             PaneList(Vec<Pane>),
             Definition(WindowDef),
+            DefinitionWithName(WindowDefWithName),
         }
 
         let mut first_entry = true;
@@ -507,12 +522,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
 
                     match value {
                         WindowOption::None => {}
-                        WindowOption::String(string) => {
-                            window.panes = vec![Pane {
-                                commands: vec![string],
-                                ..Pane::default()
-                            }]
-                        }
+                        WindowOption::String(string) => window.panes = vec![Pane::from(string)],
                         WindowOption::CommandList(commands) => {
                             window.panes = commands
                                 .into_iter()
@@ -523,6 +533,14 @@ impl<'de> Visitor<'de> for WindowVisitor {
                                 .collect()
                         }
                         WindowOption::PaneList(panes) => window.panes = panes,
+                        WindowOption::DefinitionWithName(def) => {
+                            window.name = def.name;
+                            window.working_dir = def.working_dir;
+                            window.layout = def.layout;
+                            window.on_create = def.on_create;
+                            window.post_create = def.post_create;
+                            window.panes = def.panes;
+                        }
                         WindowOption::Definition(def) => {
                             window.working_dir = def.working_dir;
                             window.layout = def.layout;
@@ -534,30 +552,30 @@ impl<'de> Visitor<'de> for WindowVisitor {
                 }
                 Some(key) => match value {
                     WindowOption::None => match key.as_str() {
-                        "name" => window.name = None,
+                        "name" | "title" => window.name = None,
                         "working_dir" | "root" => window.working_dir = None,
                         "layout" => window.layout = None,
                         "on_create" => window.on_create = vec![],
                         "post_create" => window.post_create = vec![],
                         "panes" => window.panes = vec![Pane::default()],
                         _ => {
-                            if first_entry {
-                                window.name = Some(key);
-                            } else {
+                            if !first_entry {
                                 Err(de::Error::custom(format!(
                                     "window field {:?} cannot be null",
                                     key
                                 )))?;
                             }
+
+                            window.name = Some(key);
                         }
                     },
-                    WindowOption::String(string) => match key.as_str() {
-                        "name" => window.name = Some(string),
-                        "working_dir" | "root" => window.working_dir = Some(PathBuf::from(string)),
-                        "layout" => window.layout = Some(string),
-                        "on_create" => window.on_create = vec![process_command(string)],
-                        "post_create" => window.post_create = vec![process_command(string)],
-                        "panes" => window.panes = vec![Pane::from(string)],
+                    WindowOption::String(val) => match key.as_str() {
+                        "name" | "title" => window.name = Some(val),
+                        "working_dir" | "root" => window.working_dir = Some(PathBuf::from(val)),
+                        "layout" => window.layout = Some(val),
+                        "on_create" => window.on_create = vec![process_command(val)],
+                        "post_create" => window.post_create = vec![process_command(val)],
+                        "panes" => window.panes = vec![Pane::from(val)],
                         _ => {
                             if !first_entry {
                                 Err(de::Error::custom(format!(
@@ -567,7 +585,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             }
 
                             window.name = Some(key);
-                            window.panes = vec![Pane::from(string)]
+                            window.panes = vec![Pane::from(val)]
                         }
                     },
                     WindowOption::CommandList(commands) => match key.as_str() {
@@ -623,6 +641,21 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         window.post_create = def.post_create;
                         window.panes = def.panes;
                     }
+                    WindowOption::DefinitionWithName(def) => {
+                        if !first_entry {
+                            Err(de::Error::custom(format!(
+                                "window field {:?} cannot be a window definition",
+                                key
+                            )))?
+                        }
+
+                        window.name = def.name;
+                        window.working_dir = def.working_dir;
+                        window.layout = def.layout;
+                        window.on_create = def.on_create;
+                        window.post_create = def.post_create;
+                        window.panes = def.panes;
+                    }
                 },
             }
 
@@ -657,6 +690,7 @@ impl Default for Window {
 
 #[derive(Serialize, Default, Debug, PartialEq)]
 pub struct Pane {
+    pub name: Option<String>,
     pub working_dir: Option<PathBuf>,
     pub split: Option<PaneSplit>,
     pub split_from: Option<usize>,
@@ -724,56 +758,312 @@ impl From<Vec<String>> for Pane {
     }
 }
 
+struct PaneVisitor;
+impl<'de> Visitor<'de> for PaneVisitor {
+    type Value = Pane;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a pane definition")
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Pane::default())
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Pane::default())
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Pane::from(v))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let mut commands: Vec<String> = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+
+        while let Some(command) = seq.next_element::<String>()? {
+            commands.push(command);
+        }
+
+        Ok(Pane::from(commands))
+    }
+
+    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+    where
+        M: de::MapAccess<'de>,
+    {
+        type PaneKeyType = Option<String>;
+
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct PaneDef {
+            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
+            working_dir: Option<PathBuf>,
+            #[serde(default)]
+            split: Option<PaneSplit>,
+            #[serde(default)]
+            split_from: Option<usize>,
+            #[serde(default, deserialize_with = "Pane::de_split_size")]
+            split_size: Option<String>,
+            #[serde(default)]
+            clear: bool,
+            #[serde(default, deserialize_with = "de_command_list")]
+            on_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            post_create: Vec<String>,
+            #[serde(default, alias = "command", deserialize_with = "de_command_list")]
+            commands: Vec<String>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(deny_unknown_fields)]
+        struct PaneDefWithName {
+            #[serde(alias = "title")]
+            name: Option<String>,
+            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
+            working_dir: Option<PathBuf>,
+            #[serde(default)]
+            split: Option<PaneSplit>,
+            #[serde(default)]
+            split_from: Option<usize>,
+            #[serde(default, deserialize_with = "Pane::de_split_size")]
+            split_size: Option<String>,
+            #[serde(default)]
+            clear: bool,
+            #[serde(default, deserialize_with = "de_command_list")]
+            on_create: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            post_create: Vec<String>,
+            #[serde(default, alias = "command", deserialize_with = "de_command_list")]
+            commands: Vec<String>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum PaneOption {
+            None,
+            Bool(bool),
+            Number(usize),
+            String(String),
+            CommandList(Vec<String>),
+            Definition(PaneDef),
+            DefinitionWithName(PaneDefWithName),
+        }
+
+        let mut first_entry = true;
+        let mut pane = Self::Value::default();
+        while let Some((key, val)) = map.next_entry::<PaneKeyType, PaneOption>()? {
+            match key {
+                None => {
+                    if !first_entry {
+                        Err(de::Error::custom(
+                            "null name can only be set as first element of the map",
+                        ))?;
+                    }
+
+                    match val {
+                        PaneOption::None => {}
+                        PaneOption::Bool(val) => {
+                            Err(de::Error::custom(format!(
+                                "invalid value for pane: {:?}",
+                                val
+                            )))?;
+                        }
+                        PaneOption::Number(val) => {
+                            Err(de::Error::custom(format!(
+                                "invalid value for pane: {:?}",
+                                val
+                            )))?;
+                        }
+                        PaneOption::String(string) => pane.commands = vec![process_command(string)],
+                        PaneOption::CommandList(commands) => {
+                            pane.commands = process_command_list(commands)
+                        }
+                        PaneOption::Definition(def) => {
+                            pane.working_dir = def.working_dir;
+                            pane.split = def.split;
+                            pane.split_from = def.split_from;
+                            pane.split_size = def.split_size;
+                            pane.clear = def.clear;
+                            pane.on_create = def.on_create;
+                            pane.post_create = def.post_create;
+                            pane.commands = def.commands;
+                        }
+                        PaneOption::DefinitionWithName(def) => {
+                            pane.name = def.name;
+                            pane.working_dir = def.working_dir;
+                            pane.split = def.split;
+                            pane.split_from = def.split_from;
+                            pane.split_size = def.split_size;
+                            pane.clear = def.clear;
+                            pane.on_create = def.on_create;
+                            pane.post_create = def.post_create;
+                            pane.commands = def.commands;
+                        }
+                    }
+                }
+                Some(key) => match val {
+                    PaneOption::None => match key.as_str() {
+                        "name" | "title" => pane.name = None,
+                        "working_dir" | "root" => pane.working_dir = None,
+                        "split" => pane.split = None,
+                        "split_from" => pane.split_from = None,
+                        "split_size" => pane.split_size = None,
+                        "clear" => pane.clear = false,
+                        "on_create" => pane.on_create = vec![],
+                        "post_create" => pane.post_create = vec![],
+                        "commands" | "command" => pane.commands = vec![],
+                        _ => {
+                            if !first_entry {
+                                Err(de::Error::custom(format!(
+                                    "pane field {:?} cannot be null",
+                                    key
+                                )))?;
+                            }
+
+                            pane.name = Some(key);
+                        }
+                    },
+                    PaneOption::Bool(val) => match key.as_str() {
+                        "clear" => pane.clear = val,
+                        _ => {
+                            if !first_entry {
+                                Err(de::Error::custom(format!(
+                                    "pane field {:?} cannot be a boolean",
+                                    key
+                                )))?;
+                            }
+                        }
+                    },
+                    PaneOption::Number(val) => match key.as_str() {
+                        "name" | "title" => pane.name = Some(val.to_string()),
+                        "working_dir" | "root" => {
+                            pane.working_dir = Some(PathBuf::from(val.to_string()))
+                        }
+                        "split_from" => pane.split_from = Some(val),
+                        "split_size" => pane.split_size = Some(val.to_string()),
+                        "clear" => pane.clear = val != 0,
+                        _ => {
+                            if !first_entry {
+                                Err(de::Error::custom(format!(
+                                    "pane field {:?} cannot be a number",
+                                    key
+                                )))?;
+                            }
+
+                            pane.name = Some(key);
+                        }
+                    },
+                    PaneOption::String(val) => match key.as_str() {
+                        "name" | "title" => pane.name = Some(val),
+                        "working_dir" | "root" => pane.working_dir = Some(PathBuf::from(val)),
+                        "split" => {
+                            pane.split = Some(match val {
+                                s if ["v", "vertical"].contains(&s.to_lowercase().as_str()) => {
+                                    PaneSplit::Vertical
+                                }
+                                s if ["h", "horizontal"].contains(&s.to_lowercase().as_str()) => {
+                                    PaneSplit::Horizontal
+                                }
+                                _ => Err(de::Error::custom(format!(
+                                    "expected split value {:?} to match v|h|vertical|horizontal",
+                                    val
+                                )))?,
+                            })
+                        }
+                        "split_size" => pane.split_size = Some(val),
+                        "on_create" => pane.on_create = vec![process_command(val)],
+                        "post_create" => pane.post_create = vec![process_command(val)],
+                        "commands" | "command" => pane.commands = vec![process_command(val)],
+                        _ => {
+                            if !first_entry {
+                                Err(de::Error::custom(format!(
+                                    "pane field {:?} cannot be a string",
+                                    key
+                                )))?;
+                            }
+
+                            pane.name = Some(key);
+                        }
+                    },
+                    PaneOption::CommandList(commands) => match key.as_str() {
+                        "on_create" => pane.on_create = process_command_list(commands),
+                        "post_create" => pane.post_create = process_command_list(commands),
+                        "commands" | "command" => pane.commands = process_command_list(commands),
+                        _ => {
+                            if !first_entry {
+                                Err(de::Error::custom(format!(
+                                    "pane field {:?} cannot be a command list",
+                                    key
+                                )))?;
+                            }
+
+                            pane.name = Some(key);
+                        }
+                    },
+                    PaneOption::Definition(def) => {
+                        if !first_entry {
+                            Err(de::Error::custom(format!(
+                                "pane field {:?} cannot be a window definition",
+                                key
+                            )))?
+                        }
+
+                        pane.name = Some(key);
+                        pane.working_dir = def.working_dir;
+                        pane.split = def.split;
+                        pane.split_from = def.split_from;
+                        pane.split_size = def.split_size;
+                        pane.clear = def.clear;
+                        pane.on_create = def.on_create;
+                        pane.post_create = def.post_create;
+                        pane.commands = def.commands;
+                    }
+                    PaneOption::DefinitionWithName(def) => {
+                        if !first_entry {
+                            Err(de::Error::custom(format!(
+                                "pane field {:?} cannot be a window definition",
+                                key
+                            )))?
+                        }
+
+                        pane.name = def.name;
+                        pane.working_dir = def.working_dir;
+                        pane.split = def.split;
+                        pane.split_from = def.split_from;
+                        pane.split_size = def.split_size;
+                        pane.clear = def.clear;
+                        pane.on_create = def.on_create;
+                        pane.post_create = def.post_create;
+                        pane.commands = def.commands;
+                    }
+                },
+            }
+            first_entry = false;
+        }
+
+        Ok(pane)
+    }
+}
+
 impl<'de> Deserialize<'de> for Pane {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        #[derive(Deserialize, Debug)]
-        struct PaneDefinition {
-            #[serde(default, alias = "root", deserialize_with = "de_working_dir")]
-            pub working_dir: Option<PathBuf>,
-            #[serde(default)]
-            pub split: Option<PaneSplit>,
-            #[serde(default)]
-            pub split_from: Option<usize>,
-            #[serde(default, deserialize_with = "Pane::de_split_size")]
-            pub split_size: Option<String>,
-            #[serde(default)]
-            pub clear: bool,
-            #[serde(default, deserialize_with = "de_command_list")]
-            pub on_create: Vec<String>,
-            #[serde(default, deserialize_with = "de_command_list")]
-            pub post_create: Vec<String>,
-            #[serde(default, alias = "command", deserialize_with = "de_command_list")]
-            pub commands: Vec<String>,
-        }
-
-        #[derive(Deserialize, Debug)]
-        #[serde(untagged)]
-        enum PaneProxy {
-            Definition(PaneDefinition),
-            CommandList(Vec<String>),
-            Command(String),
-            None,
-        }
-
-        let proxy: PaneProxy = de::Deserialize::deserialize(deserializer)?;
-        Ok(match proxy {
-            PaneProxy::None => Self::default(),
-            PaneProxy::CommandList(list) => Self::from(list),
-            PaneProxy::Command(cmd) => Self::from(cmd),
-            PaneProxy::Definition(proxy) => Self {
-                working_dir: proxy.working_dir,
-                split: proxy.split,
-                split_from: proxy.split_from,
-                split_size: proxy.split_size,
-                clear: proxy.clear,
-                on_create: proxy.on_create,
-                post_create: proxy.post_create,
-                commands: proxy.commands,
-            },
-        })
+        deserializer.deserialize_any(PaneVisitor)
     }
 }
 
