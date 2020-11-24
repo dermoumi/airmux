@@ -161,8 +161,9 @@ pub fn start_project<S: AsRef<OsStr>>(
 pub fn kill_project<S: AsRef<OsStr>>(
     config: &Config,
     project_name: S,
+    args: Vec<String>,
 ) -> Result<(), Box<dyn error::Error>> {
-    let project = project::load(config, &project_name, None, &vec![])?;
+    let project = project::load(config, &project_name, None, &args)?;
     project.check()?;
 
     let session_name = project

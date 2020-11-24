@@ -71,6 +71,10 @@ subcommands:
             value_name: PROJECT_NAME
             required: true
             index: 1
+        - args:
+            help: arguments to be passed as variables to the yaml file
+            value_name: ARGUMENT
+            multiple: true
   - edit:
       settings:
         - ColoredHelp
