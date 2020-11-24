@@ -393,8 +393,14 @@ impl Window {
 
 impl From<&str> for Window {
     fn from(command: &str) -> Self {
+        Self::from(command.to_string())
+    }
+}
+
+impl From<String> for Window {
+    fn from(command: String) -> Self {
         Self {
-            panes: vec![command.into()],
+            panes: vec![Pane::from(command)],
             ..Self::default()
         }
     }
@@ -405,7 +411,7 @@ impl From<Vec<String>> for Window {
         Self {
             panes: commands
                 .into_iter()
-                .map(|command| Pane::from(command.as_str()))
+                .map(|command| Pane::from(command))
                 .collect(),
             ..Self::default()
         }
@@ -551,7 +557,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "layout" => window.layout = Some(string),
                         "on_create" => window.on_create = vec![process_command(string)],
                         "post_create" => window.post_create = vec![process_command(string)],
-                        "panes" => window.panes = vec![Pane::from(string.as_str())],
+                        "panes" => window.panes = vec![Pane::from(string)],
                         _ => {
                             if !first_entry {
                                 Err(de::Error::custom(format!(
@@ -561,20 +567,16 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             }
 
                             window.name = Some(key);
-                            window.panes = vec![Pane::from(string.as_str())]
+                            window.panes = vec![Pane::from(string)]
                         }
                     },
                     WindowOption::CommandList(commands) => match key.as_str() {
-                        "on_create" => {
-                            window.on_create = commands.into_iter().map(process_command).collect()
-                        }
-                        "post_create" => {
-                            window.post_create = commands.into_iter().map(process_command).collect()
-                        }
+                        "on_create" => window.on_create = process_command_list(commands),
+                        "post_create" => window.post_create = process_command_list(commands),
                         "panes" => {
                             window.panes = commands
                                 .into_iter()
-                                .map(|command| Pane::from(command.as_str()))
+                                .map(|command| Pane::from(command))
                                 .collect()
                         }
                         _ => {
@@ -588,7 +590,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.name = Some(key);
                             window.panes = commands
                                 .into_iter()
-                                .map(|command| Pane::from(command.as_str()))
+                                .map(|command| Pane::from(command))
                                 .collect()
                         }
                     },
@@ -700,8 +702,14 @@ impl Pane {
 
 impl From<&str> for Pane {
     fn from(command: &str) -> Self {
+        Self::from(command.to_string())
+    }
+}
+
+impl From<String> for Pane {
+    fn from(command: String) -> Self {
         Self {
-            commands: vec![process_command(command.into())],
+            commands: vec![process_command(command)],
             ..Self::default()
         }
     }
@@ -753,14 +761,8 @@ impl<'de> Deserialize<'de> for Pane {
         let proxy: PaneProxy = de::Deserialize::deserialize(deserializer)?;
         Ok(match proxy {
             PaneProxy::None => Self::default(),
-            PaneProxy::CommandList(list) => Self {
-                commands: list,
-                ..Self::default()
-            },
-            PaneProxy::Command(cmd) => Self {
-                commands: vec![cmd],
-                ..Self::default()
-            },
+            PaneProxy::CommandList(list) => Self::from(list),
+            PaneProxy::Command(cmd) => Self::from(cmd),
             PaneProxy::Definition(proxy) => Self {
                 working_dir: proxy.working_dir,
                 split: proxy.split,
@@ -825,7 +827,7 @@ where
 
     let command_list: CommandList = de::Deserialize::deserialize(deserializer)?;
     Ok(match command_list {
-        CommandList::List(commands) => commands.into_iter().map(process_command).collect(),
+        CommandList::List(commands) => process_command_list(commands),
         CommandList::Single(command) => vec![process_command(command)],
         CommandList::Empty => vec![],
     })
@@ -833,6 +835,10 @@ where
 
 fn process_command(command: String) -> String {
     command.replace("#", "##")
+}
+
+fn process_command_list(commands: Vec<String>) -> Vec<String> {
+    commands.into_iter().map(process_command).collect()
 }
 
 #[cfg(test)]
