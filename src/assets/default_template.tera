@@ -13,7 +13,7 @@ run-shell {{ cmd_quoted }}
 {%- endfor %}
 
 # Check if there's already a session with the same name and create it if not
-if-shell {{ '! ' ~ cmd ~ ' list-session -F "##S" | grep -Fx ' ~ session_name | quote }} {
+if-shell {{ '! ' ~ cmd ~ ' list-sessions -F "##S" | grep -Fx ' ~ session_name | quote }} {
     new-session -s {{ session_name }} -d
 
     # Move existing window to the base index if it's different
@@ -35,17 +35,39 @@ if-shell {{ '! ' ~ cmd ~ ' list-session -F "##S" | grep -Fx ' ~ session_name | q
                                  | replace(from="__SESSION__", to=session_name)
                                  | quote %}
     {%- set run_shell_quoted = "run-shell '" ~ command ~ "'" | quote %}
-    set-hook -t {{session_name}} client-detached {{ run_shell_quoted }}
+    set-hook -t {{session_name}} -a client-detached {{ run_shell_quoted }}
     {%- endfor %}
 
+    {%- if project.on_stop %}
+    # Make sure tmux does not exit when there are no sessions
+    # On stop hooks don't execute when the server quites
+    set -g exit-empty off
+
     # Setup stop commands
-    {%- for command in project.on_stop %}
-    {%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
-                                 | replace(from="__SESSION__", to=session_name)
-                                 | quote %}
-    {%- set run_shell_quoted = "run-shell '" ~ command ~ "'" | quote %}
-    set-hook -a -t {{session_name}} session-closed {{ run_shell_quoted }}
+    {%- set command_list = '' %}
+
+    # On exit commands will only trigger while the session exists,
+    # So we're adding them here before the on stop hooks
+    {%- for command in project.on_exit %}
+    {%- set command = command | replace(from="__TMUX__", to=cmd)
+                              | replace(from="__SESSION__", to=session_name) %}
+    {%- set_global command_list = command_list ~ command ~ ';' %}
     {%- endfor %}
+
+    {%- for command in project.on_stop %}
+    {%- set command = command | replace(from="__TMUX__", to=cmd)
+                              | replace(from="__SESSION__", to=session_name) %}
+    {%- set_global command_list = command_list ~ command ~ ';' %}
+    {%- endfor %}
+
+    {%- set command_list = command_list ~ cmd ~ ' set-hook -gu session-closed[#{session_created}];' %}
+    {%- set command_list_quoted = command_list | quote %}
+    {%- set if_cmd = '! ' ~ cmd ~ ' list-sessions -F "####S" | grep -Fx ' ~ session_name | quote %}
+    {%- set run_shell = 'run-shell ' ~ command_list_quoted | quote %}
+    {%- set hook_command = 'if-shell ' ~ if_cmd ~ ' ' ~ run_shell | quote %}
+    {%- set sethook_cmd = cmd ~ ' set-hook -g session-closed[#{session_created}] ' ~ hook_command | quote %}
+    run-shell -t {{ session_name }} {{ sethook_cmd }}
+    {%- endif %}
 
     set-environment -g __RMUX_SESSION_CREATED 1
     set-environment -gu __RMUX_SESSION_ATTACHED
