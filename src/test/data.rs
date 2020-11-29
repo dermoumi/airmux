@@ -1715,6 +1715,86 @@ fn pane_1st_form_fails_when_null_key_name_is_not_first_line() {
 }
 
 #[test]
+fn pane_1st_form_deserializes_working_dir_from_number() {
+    let yaml = r#"
+        pane:
+        working_dir: 0
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.working_dir, Some(PathBuf::from("0")));
+}
+
+#[test]
+fn pane_1st_form_fails_when_a_field_does_not_accept_a_string() {
+    let yaml = r#"
+        pane:
+        clear: a string
+    "#;
+
+    let result = serde_yaml::from_str::<Pane>(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("pane field \"clear\" cannot be a string"));
+}
+
+#[test]
+fn pane_1st_form_fails_when_a_field_does_not_accept_a_command_list() {
+    let yaml = r#"
+        pane:
+        clear:
+            - command1
+            - command2
+    "#;
+
+    let result = serde_yaml::from_str::<Pane>(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("pane field \"clear\" cannot be a command list"));
+}
+
+#[test]
+fn pane_1st_form_fails_when_a_field_does_not_accept_a_pane_definition_with_name() {
+    let yaml = r#"
+        pane:
+        clear:
+            name: pane
+            command: echo hi
+    "#;
+
+    let result = serde_yaml::from_str::<Pane>(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("pane field \"clear\" cannot be a pane definition"));
+}
+
+#[test]
+fn pane_1st_form_fails_when_a_field_does_not_accept_a_pane_definition_without_name() {
+    let yaml = r#"
+        pane:
+        clear:
+            command: echo hi
+    "#;
+
+    let result = serde_yaml::from_str::<Pane>(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("pane field \"clear\" cannot be a pane definition"));
+}
+
+#[test]
 fn pane_2nd_form_deserializes_correctly_with_name() {
     let yaml = r#"
         pane name:
@@ -1772,6 +1852,23 @@ fn pane_2nd_form_deserializes_correctly_with_null_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+        }
+    )
+}
+
+#[test]
+fn pane_2nd_form_deserializes_correctly_from_string() {
+    let yaml = r#"
+        pane name: command
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(
+        pane,
+        Pane {
+            name: Some(String::from("pane name")),
+            commands: vec![String::from("command")],
+            ..Pane::default()
         }
     )
 }
@@ -1877,6 +1974,23 @@ fn pane_2nd_form_deserializes_correctly_from_command_list_with_null_name() {
 }
 
 #[test]
+fn pane_2nd_form_deserializes_correctly_from_single_command_with_null_name() {
+    let yaml = r#"
+        ~: command
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(
+        pane,
+        Pane {
+            name: None,
+            commands: vec![String::from("command")],
+            ..Pane::default()
+        }
+    )
+}
+
+#[test]
 fn pane_2nd_form_deserializes_split_size_null() {
     let yaml = r#"
         pane:
@@ -1964,7 +2078,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_name() {
         some name:
             name: ~
             working_dir: /home
-            split: v
+            split: h
             split_from: 1
             split_size: 42%
             clear: true

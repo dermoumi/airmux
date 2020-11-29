@@ -1204,7 +1204,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     PaneOption::Definition(def) => {
                         if !first_entry {
                             Err(de::Error::custom(format!(
-                                "pane field {:?} cannot be a window definition",
+                                "pane field {:?} cannot be a pane definition",
                                 key
                             )))?
                         }
@@ -1222,7 +1222,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     PaneOption::DefinitionWithName(def) => {
                         if !first_entry {
                             Err(de::Error::custom(format!(
-                                "pane field {:?} cannot be a window definition",
+                                "pane field {:?} cannot be a pane definition",
                                 key
                             )))?
                         }
