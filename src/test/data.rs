@@ -448,7 +448,6 @@ fn project_deserializer_raises_error_when_both_attach_and_detached_are_set() {
 
     let result = serde_yaml::from_str::<Project>(yaml);
     assert!(result.is_err());
-    println!("{:?}", result);
     assert_eq!(
         result.err().unwrap().to_string(),
         "cannot set both 'attach' and 'detached' fields",
@@ -903,7 +902,6 @@ fn window_1st_form_fails_when_key_name_is_not_first_line() {
     "#;
 
     let result = serde_yaml::from_str::<Window>(yaml);
-    println!("{:?}", result);
     assert!(result.is_err());
     assert!(result
         .err()
@@ -1642,7 +1640,7 @@ fn pane_1st_form_deserializes_correctly_with_null_key_name() {
     let yaml = r#"
         ~:
         working_dir: /home
-        split: v
+        split: h
         split_from: 1
         split_size: 42%
         clear: true
@@ -1657,7 +1655,7 @@ fn pane_1st_form_deserializes_correctly_with_null_key_name() {
         Pane {
             name: None,
             working_dir: Some(PathBuf::from("/home")),
-            split: Some(PaneSplit::Vertical),
+            split: Some(PaneSplit::Horizontal),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
             clear: true,
@@ -1795,6 +1793,61 @@ fn pane_1st_form_fails_when_a_field_does_not_accept_a_pane_definition_without_na
 }
 
 #[test]
+fn pane_1st_form_deserializes_split_h() {
+    let yaml = r#"
+        split: h
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Horizontal));
+}
+
+#[test]
+fn pane_1st_form_deserializes_split_horizontal() {
+    let yaml = r#"
+        split: horizontal
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Horizontal));
+}
+
+#[test]
+fn pane_1st_form_deserializes_split_v() {
+    let yaml = r#"
+        split: v
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Vertical));
+}
+
+#[test]
+fn pane_1st_form_deserializes_split_vertical() {
+    let yaml = r#"
+        split: vertical
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Vertical));
+}
+
+#[test]
+fn pane_1st_form_raises_error_on_invalid_split_value() {
+    let yaml = r#"
+        split: o
+    "#;
+
+    let result = serde_yaml::from_str::<Pane>(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("expected split value \"o\" to match v|h|vertical|horizontal"));
+}
+
+#[test]
 fn pane_2nd_form_deserializes_correctly_with_name() {
     let yaml = r#"
         pane name:
@@ -1896,7 +1949,6 @@ fn pane_2nd_form_fails_to_deserialize_from_boolean_with_null_name() {
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    println!("{:?}", result);
     assert!(result
         .err()
         .unwrap()
@@ -1927,7 +1979,6 @@ fn pane_2nd_form_fails_to_deserialize_from_number_with_null_name() {
 
     let result = serde_yaml::from_str::<Pane>(yaml);
     assert!(result.is_err());
-    println!("{:?}", result);
     assert!(result
         .err()
         .unwrap()
@@ -2041,6 +2092,66 @@ fn pane_2nd_form_raises_error_on_invalid_split_size_value() {
 }
 
 #[test]
+fn pane_2nd_form_deserializes_split_h() {
+    let yaml = r#"
+        pane:
+            split: h
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Horizontal));
+}
+
+#[test]
+fn pane_2nd_form_deserializes_split_horizontal() {
+    let yaml = r#"
+        pane:
+            split: horizontal
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Horizontal));
+}
+
+#[test]
+fn pane_2nd_form_deserializes_split_v() {
+    let yaml = r#"
+        pane:
+            split: v
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Vertical));
+}
+
+#[test]
+fn pane_2nd_form_deserializes_split_vertical() {
+    let yaml = r#"
+        pane:
+            split: vertical
+    "#;
+
+    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(pane.split, Some(PaneSplit::Vertical));
+}
+
+#[test]
+fn pane_2nd_form_raises_error_on_invalid_split_value() {
+    let yaml = r#"
+        pane:
+            split: o
+    "#;
+
+    let result = serde_yaml::from_str::<Pane>(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("data did not match any variant of untagged enum PaneOption"));
+}
+
+#[test]
 fn pane_3rd_form_deserializes_correctly_with_name() {
     let yaml = r#"
         some name:
@@ -2093,7 +2204,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_name() {
         Pane {
             name: None,
             working_dir: Some(PathBuf::from("/home")),
-            split: Some(PaneSplit::Vertical),
+            split: Some(PaneSplit::Horizontal),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
             clear: true,
@@ -2142,7 +2253,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
         ~:
             name: pane name
             working_dir: /home
-            split: v
+            split: h
             split_from: 1
             split_size: 42%
             clear: true
@@ -2157,7 +2268,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
         Pane {
             name: Some(String::from("pane name")),
             working_dir: Some(PathBuf::from("/home")),
-            split: Some(PaneSplit::Vertical),
+            split: Some(PaneSplit::Horizontal),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
             clear: true,
@@ -2166,61 +2277,6 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
             commands: vec![String::from("echo command")],
         }
     )
-}
-
-#[test]
-fn pane_deserializes_split_h() {
-    let yaml = r#"
-        split: h
-    "#;
-
-    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(pane.split, Some(PaneSplit::Horizontal));
-}
-
-#[test]
-fn pane_deserializes_split_horizontal() {
-    let yaml = r#"
-        split: horizontal
-    "#;
-
-    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(pane.split, Some(PaneSplit::Horizontal));
-}
-
-#[test]
-fn pane_deserializes_split_v() {
-    let yaml = r#"
-        split: v
-    "#;
-
-    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(pane.split, Some(PaneSplit::Vertical));
-}
-
-#[test]
-fn pane_deserializes_split_vertical() {
-    let yaml = r#"
-        split: vertical
-    "#;
-
-    let pane: Pane = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(pane.split, Some(PaneSplit::Vertical));
-}
-
-#[test]
-fn pane_raises_error_on_invalid_split_value() {
-    let yaml = r#"
-        split: o
-    "#;
-
-    let result = serde_yaml::from_str::<Pane>(yaml);
-    assert!(result.is_err());
-    assert!(result
-        .err()
-        .unwrap()
-        .to_string()
-        .contains("expected split value \"o\" to match v|h|vertical|horizontal"));
 }
 
 #[test]

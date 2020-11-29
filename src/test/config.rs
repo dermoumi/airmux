@@ -160,3 +160,23 @@ fn get_projects_dir_returns_correct_subdir_path() {
     let result = test_config.get_projects_dir(subdir).unwrap();
     assert_eq!(expected_path, result);
 }
+
+#[test]
+fn get_tmux_command_splits_commands_correctly() {
+    let test_config = make_config(None, None, Some(OsString::from("tmuxor -o1 option1")), None);
+
+    let (command, args) = test_config
+        .get_tmux_command(vec![OsString::from("-o2"), OsString::from("option2")])
+        .unwrap();
+
+    assert_eq!(command, "tmuxor");
+    assert_eq!(
+        args,
+        vec![
+            OsString::from("-o1"),
+            OsString::from("option1"),
+            OsString::from("-o2"),
+            OsString::from("option2"),
+        ],
+    );
+}

@@ -317,7 +317,7 @@ mod project {
         )
     }
 
-    fn env_context(s: &str, args: &[String]) -> Result<Option<String>, Box<dyn error::Error>> {
+    pub fn env_context(s: &str, args: &[String]) -> Result<Option<String>, Box<dyn error::Error>> {
         // Check if it's a number and that it's > 0 and <= args.len()
         if let Ok(arg_index) = s.parse::<usize>() {
             if arg_index > 0 && arg_index <= args.len() {
