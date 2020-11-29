@@ -8,9 +8,9 @@ use std::path::PathBuf;
 #[derive(Debug, Snafu)]
 pub enum Error {
     #[snafu(display("Project name {:?} cannot not have a trailing slash", project_name))]
-    ProjectNameTrailingSlash { project_name: OsString }, // nocov
+    ProjectNameTrailingSlash { project_name: OsString },
     #[snafu(display("Project name {:?} cannot not be an absolute path", project_name))]
-    ProjectNameAbsolutePath { project_name: OsString }, // nocov
+    ProjectNameAbsolutePath { project_name: OsString },
     #[snafu(display("Command cannot be empty"))]
     EmptyCommand {},
     #[snafu(display("name {:?} cannot contain the following characters: .: ", identifier))]

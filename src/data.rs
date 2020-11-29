@@ -11,7 +11,7 @@ use std::ffi::OsString;
 use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 pub struct Project {
     pub session_name: Option<String>,
     pub tmux_command: Option<String>,
@@ -86,7 +86,7 @@ impl Project {
                     .is_none()
                 {
                     Err(format!(
-                        "startup_window: there is no window with name {}",
+                        "startup_window: there is no window with name {:?}",
                         name
                     ))?;
                 }
@@ -97,7 +97,10 @@ impl Project {
         // Make sure working_dir exists and is a directory
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
-                Err(format!("session working_dir {:?} does not exist", path))?;
+                Err(format!(
+                    "project working_dir {:?} is not a directory or does not exist",
+                    path
+                ))?;
             }
         }
 
@@ -108,18 +111,22 @@ impl Project {
             .collect::<Result<_, _>>()
     }
 
-    // Makes sure that any arguments passed in tmux_command are instead added as arguments
+    // Separates tmux_command into the command itself + an array of arguments
+    // The arguments are then merged with the passed arguments
+    // Also appends tmux_socket and tmux_options as arguments while at it
     pub fn get_tmux_command(
         &self,
         args: Vec<OsString>,
     ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
         let command = OsString::from(self.tmux_command.as_ref().ok_or("tmux command not set")?);
 
+        // Build tmux_socket arguments
         let socket_args: Vec<OsString> = match &self.tmux_socket {
             Some(tmux_socket) => vec![OsString::from("-L"), OsString::from(tmux_socket)],
             None => vec![],
         };
 
+        // Convert tmux_options ot OsString
         let mut extra_args: Vec<OsString> = match &self.tmux_options {
             Some(tmux_options) => split(&tmux_options)?
                 .into_iter()
@@ -128,10 +135,12 @@ impl Project {
             None => vec![],
         };
 
+        // Append all args together
         let mut full_args = socket_args;
         full_args.append(&mut extra_args);
-        full_args.append(&mut args.into_iter().collect());
+        full_args.append(&mut args.to_owned());
 
+        // Use utiliy to split command and append args to the split arguments
         parse_command(&command, &full_args)
     }
 
@@ -139,14 +148,14 @@ impl Project {
     pub fn get_tmux_command_for_template(&self) -> Result<String, Box<dyn Error>> {
         let (command, args) = self.get_tmux_command(vec![])?;
 
-        Ok(format!(
-            "{} {}",
-            command.to_string_lossy(),
-            args.iter()
-                .map(|s| quote(&String::from(s.to_string_lossy())).into())
-                .collect::<Vec<String>>()
-                .join(" ")
-        ))
+        Ok(vec![command.to_string_lossy().into()]
+            .into_iter()
+            .chain(
+                args.into_iter()
+                    .map(|s| quote(&String::from(s.to_string_lossy())).into()),
+            )
+            .collect::<Vec<String>>()
+            .join(" "))
     }
 
     fn default_window_base_index() -> usize {
@@ -159,6 +168,10 @@ impl Project {
 
     fn default_windows() -> Vec<Window> {
         vec![Window::default()]
+    }
+
+    fn default_attach() -> bool {
+        true
     }
 
     fn de_window_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
@@ -184,9 +197,9 @@ impl Project {
         #[derive(Deserialize, Debug)]
         #[serde(untagged)]
         enum WindowList {
+            Empty,
             List(Vec<Window>),
             Single(Window),
-            Empty,
         };
 
         let window_list: WindowList = de::Deserialize::deserialize(deserializer)?;
@@ -194,7 +207,7 @@ impl Project {
         Ok(match window_list {
             WindowList::List(windows) => windows,
             WindowList::Single(window) => vec![window],
-            WindowList::Empty => vec![Window::default()],
+            WindowList::Empty => Self::default_windows(),
         })
     }
 }
@@ -223,7 +236,7 @@ impl Default for Project {
             pane_commands: vec![],
             attach: true,
             template: ProjectTemplate::default(),
-            windows: vec![Window::default()],
+            windows: Self::default_windows(),
         }
     }
 }
@@ -304,7 +317,12 @@ impl<'de> Deserialize<'de> for Project {
             on_pane_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_pane_create: Vec<String>,
-            #[serde(default, alias = "pre_window", deserialize_with = "de_command_list")]
+            #[serde(
+                default,
+                alias = "pre_window",
+                alias = "pane_command",
+                deserialize_with = "de_command_list"
+            )]
             pane_commands: Vec<String>,
             #[serde(default, alias = "tmux_attached")]
             attach: Option<bool>,
@@ -314,8 +332,8 @@ impl<'de> Deserialize<'de> for Project {
             template: ProjectTemplate,
             #[serde(
                 default = "Project::default_windows",
-                deserialize_with = "Project::de_windows",
-                alias = "window"
+                alias = "window",
+                deserialize_with = "Project::de_windows"
             )]
             windows: Vec<Window>,
         }
@@ -334,7 +352,7 @@ impl<'de> Deserialize<'de> for Project {
                     },
                     None => match project.detached {
                         Some(detached) => !detached,
-                        None => true,
+                        None => Self::default_attach(),
                     },
                 };
 
@@ -367,7 +385,7 @@ impl<'de> Deserialize<'de> for Project {
     }
 }
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ProjectTemplate {
     Raw(String),
@@ -409,7 +427,7 @@ impl<'de> Deserialize<'de> for ProjectTemplate {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum StartupWindow {
     Default,
@@ -423,7 +441,7 @@ impl Default for StartupWindow {
     }
 }
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 pub struct Window {
     pub name: Option<String>,
     pub working_dir: Option<PathBuf>,
@@ -460,7 +478,10 @@ impl Window {
         // Make sure working_dir exists and is a directory
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
-                Err(format!("window working_dir {:?} does not exist", path))?;
+                Err(format!(
+                    "window working_dir {:?} is not a directory or does not exist",
+                    path
+                ))?;
             }
         }
 
@@ -469,6 +490,31 @@ impl Window {
             .iter()
             .map(|p| p.check())
             .collect::<Result<_, _>>()
+    }
+
+    fn default_panes() -> Vec<Pane> {
+        vec![Pane::default()]
+    }
+
+    fn de_panes<'de, D>(deserializer: D) -> Result<Vec<Pane>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        #[derive(Deserialize, Debug)]
+        #[serde(untagged)]
+        enum PaneList {
+            Empty,
+            List(Vec<Pane>),
+            Single(Pane),
+        };
+
+        let pane_list: PaneList = de::Deserialize::deserialize(deserializer)?;
+
+        Ok(match pane_list {
+            PaneList::List(panes) => panes,
+            PaneList::Single(pane) => vec![pane],
+            PaneList::Empty => Self::default_panes(),
+        })
     }
 }
 
@@ -495,6 +541,22 @@ impl From<Vec<String>> for Window {
                 .map(|command| Pane::from(command))
                 .collect(),
             ..Self::default()
+        }
+    }
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        Self {
+            name: None,
+            working_dir: None,
+            layout: None,
+            on_create: vec![],
+            post_create: vec![],
+            on_pane_create: vec![],
+            post_pane_create: vec![],
+            pane_commands: vec![],
+            panes: Self::default_panes(),
         }
     }
 }
@@ -562,9 +624,17 @@ impl<'de> Visitor<'de> for WindowVisitor {
             on_pane_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_pane_create: Vec<String>,
-            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            #[serde(
+                default,
+                alias = "pre",
+                alias = "pane_command",
+                deserialize_with = "de_command_list"
+            )]
             pane_commands: Vec<String>,
-            #[serde(default)]
+            #[serde(
+                default = "Window::default_panes",
+                deserialize_with = "Window::de_panes"
+            )]
             panes: Vec<Pane>,
         }
 
@@ -585,9 +655,17 @@ impl<'de> Visitor<'de> for WindowVisitor {
             on_pane_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_pane_create: Vec<String>,
-            #[serde(default, alias = "pre", deserialize_with = "de_command_list")]
+            #[serde(
+                default,
+                alias = "pre",
+                alias = "pane_command",
+                deserialize_with = "de_command_list"
+            )]
             pane_commands: Vec<String>,
-            #[serde(default)]
+            #[serde(
+                default = "Window::default_panes",
+                deserialize_with = "Window::de_panes"
+            )]
             panes: Vec<Pane>,
         }
 
@@ -597,9 +675,9 @@ impl<'de> Visitor<'de> for WindowVisitor {
             None,
             String(String),
             CommandList(Vec<String>),
-            PaneList(Vec<Pane>),
             Definition(WindowDef),
             DefinitionWithName(WindowDefWithName),
+            PaneList(Vec<Pane>),
         }
 
         let mut first_entry = true;
@@ -625,7 +703,6 @@ impl<'de> Visitor<'de> for WindowVisitor {
                                 })
                                 .collect()
                         }
-                        WindowOption::PaneList(panes) => window.panes = panes,
                         WindowOption::DefinitionWithName(def) => {
                             window.name = def.name;
                             window.working_dir = def.working_dir;
@@ -647,6 +724,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.pane_commands = def.pane_commands;
                             window.panes = def.panes;
                         }
+                        WindowOption::PaneList(panes) => window.panes = panes,
                     }
                 }
                 Some(key) => match value {
@@ -658,7 +736,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "post_create" => window.post_create = vec![],
                         "on_pane_create" => window.on_pane_create = vec![],
                         "post_pane_create" => window.post_pane_create = vec![],
-                        "pane_commands" => window.pane_commands = vec![],
+                        "pane_commands" | "pane_command" | "pre" => window.pane_commands = vec![],
                         "panes" => window.panes = vec![Pane::default()],
                         _ => {
                             if !first_entry {
@@ -681,7 +759,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "post_create" => window.post_create = vec![process_command(val)],
                         "on_pane_create" => window.on_pane_create = vec![process_command(val)],
                         "post_pane_create" => window.post_pane_create = vec![process_command(val)],
-                        "pane_commands" | "pre" => {
+                        "pane_commands" | "pane_command" | "pre" => {
                             window.pane_commands = vec![process_command(val)]
                         }
                         "panes" => window.panes = vec![Pane::from(val)],
@@ -704,7 +782,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "post_pane_create" => {
                             window.post_pane_create = process_command_list(commands)
                         }
-                        "pane_commands" | "pre" => {
+                        "pane_commands" | "pane_command" | "pre" => {
                             window.pane_commands = process_command_list(commands)
                         }
                         "panes" => {
@@ -728,20 +806,6 @@ impl<'de> Visitor<'de> for WindowVisitor {
                                 .collect()
                         }
                     },
-                    WindowOption::PaneList(panes) => match key.as_str() {
-                        "panes" => window.panes = panes,
-                        _ => {
-                            if !first_entry {
-                                Err(de::Error::custom(format!(
-                                    "window field {:?} cannot be a pane list",
-                                    key
-                                )))?
-                            }
-
-                            window.name = Some(key);
-                            window.panes = panes
-                        }
-                    },
                     WindowOption::Definition(def) => {
                         if !first_entry {
                             Err(de::Error::custom(format!(
@@ -755,6 +819,9 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         window.layout = def.layout;
                         window.on_create = def.on_create;
                         window.post_create = def.post_create;
+                        window.on_pane_create = def.on_pane_create;
+                        window.post_pane_create = def.post_pane_create;
+                        window.pane_commands = def.pane_commands;
                         window.panes = def.panes;
                     }
                     WindowOption::DefinitionWithName(def) => {
@@ -770,8 +837,25 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         window.layout = def.layout;
                         window.on_create = def.on_create;
                         window.post_create = def.post_create;
+                        window.on_pane_create = def.on_pane_create;
+                        window.post_pane_create = def.post_pane_create;
+                        window.pane_commands = def.pane_commands;
                         window.panes = def.panes;
                     }
+                    WindowOption::PaneList(panes) => match key.as_str() {
+                        "panes" => window.panes = panes,
+                        _ => {
+                            if !first_entry {
+                                Err(de::Error::custom(format!(
+                                    "window field {:?} cannot be a pane list",
+                                    key
+                                )))?
+                            }
+
+                            window.name = Some(key);
+                            window.panes = panes
+                        }
+                    },
                 },
             }
 
@@ -791,23 +875,7 @@ impl<'de> Deserialize<'de> for Window {
     }
 }
 
-impl Default for Window {
-    fn default() -> Self {
-        Self {
-            name: None,
-            working_dir: None,
-            layout: None,
-            on_create: vec![],
-            post_create: vec![],
-            on_pane_create: vec![],
-            post_pane_create: vec![],
-            pane_commands: vec![],
-            panes: vec![Pane::default()],
-        }
-    }
-}
-
-#[derive(Serialize, Default, Debug, PartialEq)]
+#[derive(Serialize, Default, Debug, PartialEq, Clone)]
 pub struct Pane {
     pub name: Option<String>,
     pub working_dir: Option<PathBuf>,
@@ -825,7 +893,10 @@ impl Pane {
         // Make sure working_dir exists and is a directory
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
-                Err(format!("pane working_dir {:?} does not exist", path))?;
+                Err(format!(
+                    "pane working_dir {:?} is not a directory or does not exist",
+                    path
+                ))?;
             }
         }
 
@@ -839,15 +910,15 @@ impl Pane {
         #[derive(Deserialize, Debug)]
         #[serde(untagged)]
         enum SplitSize {
-            Percent(String),
             Cells(usize),
+            Percent(String),
             None,
         };
 
         let size: SplitSize = de::Deserialize::deserialize(deserializer)?;
         Ok(match size {
-            SplitSize::Percent(percent) => Some(percent),
             SplitSize::Cells(size) => Some(size.to_string()),
+            SplitSize::Percent(percent) => Some(percent),
             SplitSize::None => None,
         })
     }
@@ -977,8 +1048,8 @@ impl<'de> Visitor<'de> for PaneVisitor {
             Number(usize),
             String(String),
             CommandList(Vec<String>),
-            Definition(PaneDef),
             DefinitionWithName(PaneDefWithName),
+            Definition(PaneDef),
         }
 
         let mut first_entry = true;
@@ -1058,12 +1129,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     PaneOption::Bool(val) => match key.as_str() {
                         "clear" => pane.clear = val,
                         _ => {
-                            if !first_entry {
-                                Err(de::Error::custom(format!(
-                                    "pane field {:?} cannot be a boolean",
-                                    key
-                                )))?;
-                            }
+                            Err(de::Error::custom(format!(
+                                "pane field {:?} cannot be a boolean",
+                                key
+                            )))?;
                         }
                     },
                     PaneOption::Number(val) => match key.as_str() {
@@ -1075,14 +1144,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "split_size" => pane.split_size = Some(val.to_string()),
                         "clear" => pane.clear = val != 0,
                         _ => {
-                            if !first_entry {
-                                Err(de::Error::custom(format!(
-                                    "pane field {:?} cannot be a number",
-                                    key
-                                )))?;
-                            }
-
-                            pane.name = Some(key);
+                            Err(de::Error::custom(format!(
+                                "pane field {:?} cannot be a number",
+                                key
+                            )))?;
                         }
                     },
                     PaneOption::String(val) => match key.as_str() {
@@ -1117,6 +1182,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                             }
 
                             pane.name = Some(key);
+                            pane.commands = vec![process_command(val)];
                         }
                     },
                     PaneOption::CommandList(commands) => match key.as_str() {
@@ -1132,6 +1198,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                             }
 
                             pane.name = Some(key);
+                            pane.commands = process_command_list(commands);
                         }
                     },
                     PaneOption::Definition(def) => {
@@ -1172,6 +1239,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     }
                 },
             }
+
             first_entry = false;
         }
 
@@ -1188,7 +1256,7 @@ impl<'de> Deserialize<'de> for Pane {
     }
 }
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 pub enum PaneSplit {
     #[serde(rename = "horizontal")]
     Horizontal,
