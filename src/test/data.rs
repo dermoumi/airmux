@@ -1851,7 +1851,7 @@ fn pane_2nd_form_deserializes_correctly_from_command_list_with_name() {
         pane,
         Pane {
             name: Some(String::from("pane name")),
-            commands: vec![String::from("echo command1"), String::from("echo command2")],
+            commands: vec![String::from("command1"), String::from("command2")],
             ..Pane::default()
         }
     )
@@ -1870,7 +1870,7 @@ fn pane_2nd_form_deserializes_correctly_from_command_list_with_null_name() {
         pane,
         Pane {
             name: None,
-            commands: vec![String::from("echo command1"), String::from("echo command2")],
+            commands: vec![String::from("command1"), String::from("command2")],
             ..Pane::default()
         }
     )

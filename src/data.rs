@@ -1048,8 +1048,8 @@ impl<'de> Visitor<'de> for PaneVisitor {
             Number(usize),
             String(String),
             CommandList(Vec<String>),
-            DefinitionWithName(PaneDefWithName),
             Definition(PaneDef),
+            DefinitionWithName(PaneDefWithName),
         }
 
         let mut first_entry = true;
