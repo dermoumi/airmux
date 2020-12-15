@@ -1,4 +1,11 @@
 pub mod actions;
+pub mod command;
 pub mod config;
-pub mod data;
+pub mod pane;
+pub mod panesplit;
+pub mod project;
+pub mod project_template;
+pub mod startup_window;
 pub mod utils;
+pub mod window;
+pub mod working_dir;

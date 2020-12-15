@@ -1,8 +1,8 @@
-use crate::config;
-use crate::data;
 use crate::utils;
 
-use config::Config;
+use crate::config::Config;
+use crate::project::Project;
+use crate::project_template::ProjectTemplate;
 
 use dialoguer::Confirm;
 use mkdirp::mkdirp;
@@ -64,11 +64,11 @@ pub fn start_project<S: AsRef<OsStr>>(
 
     let template_content: String;
     let template = match &project.template {
-        data::ProjectTemplate::Raw(content) => {
+        ProjectTemplate::Raw(content) => {
             template_content = content.into();
             template_content.as_str()
         }
-        data::ProjectTemplate::File(filename) => {
+        ProjectTemplate::File(filename) => {
             let full_path = if filename.has_root() {
                 filename.to_owned()
             } else {
@@ -82,7 +82,7 @@ pub fn start_project<S: AsRef<OsStr>>(
             template_content = fs::read_to_string(full_path)?;
             template_content.as_str()
         }
-        data::ProjectTemplate::Default => {
+        ProjectTemplate::Default => {
             template.unwrap_or(include_str!("assets/default_template.tera"))
         }
     };
@@ -295,7 +295,7 @@ mod project {
         project_name: S,
         force_attach: Option<bool>,
         args: &[String],
-    ) -> Result<data::Project, Box<dyn error::Error>> {
+    ) -> Result<Project, Box<dyn error::Error>> {
         let project_name = project_name.as_ref();
         ensure!(!project_name.is_empty(), ProjectNameEmpty {});
 
@@ -308,13 +308,11 @@ mod project {
             .map_err(|x| x.to_string())?
             .to_string();
 
-        Ok(
-            serde_yaml::from_str::<data::Project>(&project_yaml)?.prepare(
-                &config,
-                &project_name.to_string_lossy(),
-                force_attach,
-            ),
-        )
+        Ok(serde_yaml::from_str::<Project>(&project_yaml)?.prepare(
+            &config,
+            &project_name.to_string_lossy(),
+            force_attach,
+        ))
     }
 
     pub fn env_context(s: &str, args: &[String]) -> Result<Option<String>, Box<dyn error::Error>> {
