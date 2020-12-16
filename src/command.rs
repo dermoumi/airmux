@@ -21,9 +21,16 @@ where
 }
 
 pub fn process_command(command: String) -> String {
-    command.replace("#", "##")
+    command
+        .replace("#", "##")
+        .replace("\n", " ")
+        .replace("\r", "")
 }
 
 pub fn process_command_list(commands: Vec<String>) -> Vec<String> {
     commands.into_iter().map(process_command).collect()
 }
+
+#[cfg(test)]
+#[path = "test/command.rs"]
+mod tests;
