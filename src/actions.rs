@@ -137,11 +137,18 @@ pub fn start_project<S: AsRef<OsStr>>(
         // Attach
         if project.attach {
             let session_name = project.session_name.as_ref().unwrap();
-            let (tmux_command, tmux_args) = project.get_tmux_command(vec![
-                OsString::from("attach-session"),
-                OsString::from("-t"),
-                OsString::from(session_name),
-            ])?;
+            let (tmux_command, tmux_args) = match option_env!("TMUX") {
+                Some(_) => project.get_tmux_command(vec![
+                    OsString::from("switch-client"),
+                    OsString::from("-t"),
+                    OsString::from(session_name),
+                ])?,
+                None => project.get_tmux_command(vec![
+                    OsString::from("attach-session"),
+                    OsString::from("-t"),
+                    OsString::from(session_name),
+                ])?,
+            };
             Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
         }
     }
