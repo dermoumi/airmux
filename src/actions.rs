@@ -21,6 +21,8 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+const FILE_EXTENSIONS: &'static [&'static str] = &["yml", "yaml", "json"];
+
 #[derive(Debug, Snafu)]
 pub enum Error {
     #[snafu(display("editor cannot be empty"))]
@@ -37,6 +39,8 @@ pub enum Error {
     SessionNameNotSet,
     #[snafu(display("tmux failed with exit code: {}", exit_code))]
     TmuxFailed { exit_code: i32 },
+    #[snafu(display("unsupported file extension: {:?}", extension))]
+    UnsupportedFileExtension { extension: OsString },
 }
 
 pub fn start_project<S: AsRef<OsStr>>(
@@ -207,7 +211,9 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     mkdirp(data_dir.join(&namespace))?;
 
     // Make sure the project's yml file exists
-    let project_path = data_dir.join(project_name).with_extension("yml");
+    let project_path = data_dir.join(project_name);
+    let project_path = project::test_for_file_extensions(project_path)?;
+
     ensure!(
         !project_path.is_dir(),
         ProjectFileIsADirectory { path: project_path }
@@ -240,7 +246,9 @@ pub fn remove_project<S: AsRef<OsStr>>(
     ensure!(!project_name.is_empty(), ProjectNameEmpty {});
 
     let projects_dir = config.get_projects_dir("")?;
-    let project_path = projects_dir.join(project_name).with_extension("yml");
+    let project_path = projects_dir.join(project_name);
+    let project_path = project::test_for_file_extensions(project_path)?;
+
     ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
 
     if !no_input
@@ -299,7 +307,8 @@ mod project {
         ensure!(!project_name.is_empty(), ProjectNameEmpty {});
 
         let projects_dir = config.get_projects_dir("")?;
-        let project_path = projects_dir.join(project_name).with_extension("yml");
+        let project_path = projects_dir.join(project_name);
+        let project_path = test_for_file_extensions(project_path)?;
         ensure!(project_path.is_file(), ProjectDoesNotExist { project_name });
 
         let project_yaml = fs::read_to_string(project_path)?;
@@ -324,6 +333,26 @@ mod project {
 
         // Fallback to env vars
         Ok(env::var(s).ok())
+    }
+
+    pub fn test_for_file_extensions<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<PathBuf, Box<dyn error::Error>> {
+        let path = path.as_ref();
+
+        if let Some(extension) = path.extension() {
+            edit::check_supported_extension(extension)?;
+            return Ok(path.to_path_buf());
+        }
+
+        for extension in FILE_EXTENSIONS {
+            let filename = path.with_extension(extension);
+            if filename.exists() && !filename.is_dir() {
+                return Ok(filename);
+            }
+        }
+
+        return Ok(path.with_extension(FILE_EXTENSIONS[0]));
     }
 }
 
@@ -394,17 +423,36 @@ mod edit {
         project_name: S,
         project_path: P,
     ) -> Result<(), Box<dyn error::Error>> {
-        let project_name = project_name.as_ref();
-        let project_path = project_path.as_ref();
-
+        let project_name = strip_extension_from_project_name(project_name.as_ref());
         let default_project_yml = include_str!("assets/default_project.yml")
             .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
 
+        let project_path = project_path.as_ref();
         let mut file = fs::File::create(&project_path)?;
         file.write_all(default_project_yml.as_bytes())?;
         file.sync_all()?;
 
         Ok(())
+    }
+
+    pub fn check_supported_extension<S: AsRef<OsStr>>(
+        extension: S,
+    ) -> Result<(), Box<dyn error::Error>> {
+        let extension = extension.as_ref();
+
+        ensure!(
+            FILE_EXTENSIONS.contains(&extension.to_string_lossy().to_lowercase().as_str()),
+            UnsupportedFileExtension {
+                extension: extension.to_os_string()
+            }
+        );
+
+        Ok(())
+    }
+
+    // Disguise the project name as a Path for easy access to .with_extension()
+    pub fn strip_extension_from_project_name<P: AsRef<Path>>(project_name: P) -> OsString {
+        OsString::from(project_name.as_ref().with_extension("").as_os_str())
     }
 }
 
@@ -420,9 +468,15 @@ mod list {
             let entry_path = entry.path();
 
             if entry_path.is_file() {
-                let file_path = entry_path.strip_prefix(path)?;
-                projects.push(OsString::from(file_path.with_extension("")));
+                // Ignore file if it doesn't have a supported file extension
+                if let Some(extension) = entry_path.extension() {
+                    if let Ok(_) = edit::check_supported_extension(extension) {
+                        let file_path = entry_path.strip_prefix(path)?;
+                        projects.push(OsString::from(file_path.with_extension("")));
+                    }
+                }
             } else if entry_path.is_dir() {
+                // Check for symlink loops
                 let subdir = if entry.file_type()?.is_symlink() {
                     let subdir = entry_path.read_link()?;
 
