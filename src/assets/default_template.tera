@@ -85,14 +85,6 @@ if-shell -F '#{__RMUX_SESSION_ATTACHED}' {
 set -s -t {{ session_name }} base-index {{ project.window_base_index }}
 set -s -t {{ session_name }} pane-base-index {{ project.pane_base_index }}
 
-# Run on_create commands
-{%- for command in project.on_create %}
-{%- set cmd_quoted = command | replace(from="__TMUX__", to=cmd)
-                             | replace(from="__SESSION__", to=session_name)
-                             | quote %}
-run-shell {{ cmd_quoted }}
-{%- endfor %}
-
 {% for window in project.windows -%}
 {% set window_index = loop.index - 1 + project.window_base_index -%}
 
