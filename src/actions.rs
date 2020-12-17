@@ -195,6 +195,7 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     project_name: S1,
     editor: S2,
     no_check: bool,
+    args: Vec<String>,
 ) -> Result<(), Box<dyn error::Error>> {
     let project_name = project_name.as_ref();
     ensure!(!project_name.is_empty(), ProjectNameEmpty {});
@@ -218,14 +219,14 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
     }
 
     // Open it with editor
-    let (command, args) = utils::parse_command(editor, &[OsString::from(project_path)])?;
-    let mut child = Command::new(command).args(args).spawn()?;
+    let (command, command_args) = utils::parse_command(editor, &[OsString::from(project_path)])?;
+    let mut child = Command::new(command).args(command_args).spawn()?;
 
     if !no_check {
         child.wait()?;
 
         // Perform a check on the project
-        let project = project::load(config, project_name, None, &vec![])?;
+        let project = project::load(config, project_name, None, &args)?;
         project.check()?;
     }
 

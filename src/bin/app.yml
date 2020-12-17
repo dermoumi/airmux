@@ -97,6 +97,10 @@ subcommands:
             help: do not check the project file
             short: C
             long: no-check
+        - args:
+            help: arguments to be passed as variables to the yaml file when checking
+            value_name: ARGUMENT
+            multiple: true
   - remove:
       settings:
         - ColoredHelp
