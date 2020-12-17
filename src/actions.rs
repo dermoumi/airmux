@@ -361,8 +361,11 @@ mod source {
                 OsString::from("-d"),
             ])?;
 
-            let mut dummy_command = Command::new(tmux_command);
-            dummy_command.args(tmux_args).env_remove("TMUX").spawn()?;
+            let _ = Command::new(tmux_command)
+                .args(tmux_args)
+                .env_remove("TMUX")
+                .spawn()?
+                .wait();
 
             Ok(TmuxDummySession { project })
         }
@@ -376,8 +379,9 @@ mod source {
                 OsString::from("-t"),
                 OsString::from("__rmux_dummy_session_"),
             ]) {
-                let mut dummy_command = Command::new(tmux_command);
-                let _ = dummy_command.args(tmux_args).output();
+                if let Ok(mut child) = Command::new(tmux_command).args(tmux_args).spawn() {
+                    let _ = child.wait();
+                }
             }
         }
     }
