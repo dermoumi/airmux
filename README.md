@@ -14,6 +14,7 @@ Just another tool that allows you to configure tmux sessions using YAML (or JSON
       - [Layouts](#layouts)
       - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
     - [Other commands](#other-commands)
+  - [Copyright](#copyright)
 
 ## Usage
 
@@ -372,3 +373,7 @@ Delete a project:
 ```console
 $ rmux remove my_project
 ```
+
+## Copyright
+
+Copyright (c) 2020 Saïd Dermoumi. See LICENSE for further details.
