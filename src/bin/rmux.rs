@@ -84,11 +84,12 @@ fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_os("project_name").unwrap();
+    let extension = matches.value_of_os("extension").unwrap();
     let editor = matches.value_of_os("editor").unwrap();
     let no_check = matches.is_present("no_check");
     let args = matches.values_of_lossy("args").unwrap_or(vec![]);
 
-    actions::edit_project(&config, project_name, editor, no_check, args)
+    actions::edit_project(&config, project_name, extension, editor, no_check, args)
 }
 
 fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {

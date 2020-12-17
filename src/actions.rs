@@ -192,26 +192,30 @@ pub fn kill_project<S: AsRef<OsStr>>(
     Ok(())
 }
 
-pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
+pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>, S3: AsRef<OsStr>>(
     config: &Config,
     project_name: S1,
-    editor: S2,
+    extension: S2,
+    editor: S3,
     no_check: bool,
     args: Vec<String>,
 ) -> Result<(), Box<dyn error::Error>> {
     let project_name = project_name.as_ref();
     ensure!(!project_name.is_empty(), ProjectNameEmpty {});
 
+    edit::check_supported_extension(&extension)?;
+    let project_name = edit::add_extension_to_project_name(&project_name, &extension);
+
     let editor = editor.as_ref();
     ensure!(!editor.is_empty(), EditorEmpty {});
 
     // Make sure the project's parent directory exists
-    let namespace = utils::get_project_namespace(project_name)?;
+    let namespace = utils::get_project_namespace(&project_name)?;
     let data_dir = config.get_projects_dir("")?;
     mkdirp(data_dir.join(&namespace))?;
 
     // Make sure the project's yml file exists
-    let project_path = data_dir.join(project_name);
+    let project_path = data_dir.join(&project_name);
     let project_path = project::test_for_file_extensions(project_path)?;
 
     ensure!(
@@ -456,7 +460,14 @@ mod edit {
 
     // Disguise the project name as a Path for easy access to .with_extension()
     pub fn strip_extension_from_project_name<P: AsRef<Path>>(project_name: P) -> OsString {
-        OsString::from(project_name.as_ref().with_extension("").as_os_str())
+        OsString::from(project_name.as_ref().with_extension(""))
+    }
+
+    pub fn add_extension_to_project_name<P: AsRef<Path>, S: AsRef<OsStr>>(
+        project_name: P,
+        extension: S,
+    ) -> OsString {
+        OsString::from(project_name.as_ref().with_extension(extension))
     }
 }
 

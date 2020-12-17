@@ -86,9 +86,15 @@ subcommands:
             value_name: PROJECT_NAME
             required: true
             index: 1
+        - extension:
+            help: the extension to use for the project file (yml|yaml|json)
+            short: e
+            long: ext
+            value_name: EXT
+            default_value: yml
         - editor:
             help: the editor to use
-            short: e
+            short: E
             long: editor
             required: true
             value_name: EDITOR
