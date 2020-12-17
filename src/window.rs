@@ -202,6 +202,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
             pane_commands: Vec<String>,
             #[serde(
                 default = "Window::default_panes",
+                alias = "pane",
                 deserialize_with = "Window::de_panes"
             )]
             panes: Vec<Pane>,
@@ -233,6 +234,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
             pane_commands: Vec<String>,
             #[serde(
                 default = "Window::default_panes",
+                alias = "pane",
                 deserialize_with = "Window::de_panes"
             )]
             panes: Vec<Pane>,
@@ -306,7 +308,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "on_pane_create" => window.on_pane_create = vec![],
                         "post_pane_create" => window.post_pane_create = vec![],
                         "pane_commands" | "pane_command" | "pre" => window.pane_commands = vec![],
-                        "panes" => window.panes = vec![Pane::default()],
+                        "panes" | "pane" => window.panes = vec![Pane::default()],
                         _ => {
                             if !first_entry {
                                 Err(de::Error::custom(format!(
@@ -331,7 +333,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "pane_commands" | "pane_command" | "pre" => {
                             window.pane_commands = vec![process_command(val)]
                         }
-                        "panes" => window.panes = vec![Pane::from(val)],
+                        "panes" | "pane" => window.panes = vec![Pane::from(val)],
                         _ => {
                             if !first_entry {
                                 Err(de::Error::custom(format!(
@@ -354,7 +356,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "pane_commands" | "pane_command" | "pre" => {
                             window.pane_commands = process_command_list(commands)
                         }
-                        "panes" => {
+                        "panes" | "pane" => {
                             window.panes = commands
                                 .into_iter()
                                 .map(|command| Pane::from(command))
@@ -412,7 +414,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         window.panes = def.panes;
                     }
                     WindowOption::PaneList(panes) => match key.as_str() {
-                        "panes" => window.panes = panes,
+                        "panes" | "pane" => window.panes = panes,
                         _ => {
                             if !first_entry {
                                 Err(de::Error::custom(format!(
