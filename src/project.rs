@@ -29,7 +29,6 @@ pub struct Project {
     pub on_restart: Vec<String>,
     pub on_exit: Vec<String>,
     pub on_stop: Vec<String>,
-    pub on_create: Vec<String>,
     pub post_create: Vec<String>,
     pub on_pane_create: Vec<String>,
     pub post_pane_create: Vec<String>,
@@ -231,7 +230,6 @@ impl Default for Project {
             on_restart: vec![],
             on_exit: vec![],
             on_stop: vec![],
-            on_create: vec![],
             post_create: vec![],
             on_pane_create: vec![],
             post_pane_create: vec![],
@@ -290,6 +288,7 @@ impl<'de> Deserialize<'de> for Project {
             #[serde(
                 default,
                 alias = "on_project_first_start",
+                alias = "on_create",
                 deserialize_with = "de_command_list"
             )]
             on_first_start: Vec<String>,
@@ -311,8 +310,6 @@ impl<'de> Deserialize<'de> for Project {
                 deserialize_with = "de_command_list"
             )]
             on_stop: Vec<String>,
-            #[serde(default, deserialize_with = "de_command_list")]
-            on_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
             post_create: Vec<String>,
             #[serde(default, deserialize_with = "de_command_list")]
@@ -373,7 +370,6 @@ impl<'de> Deserialize<'de> for Project {
                     on_restart: project.on_restart,
                     on_exit: project.on_exit,
                     on_stop: project.on_stop,
-                    on_create: project.on_create,
                     post_create: project.post_create,
                     on_pane_create: project.on_pane_create,
                     post_pane_create: project.post_pane_create,

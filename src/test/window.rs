@@ -787,3 +787,27 @@ fn window_deserializes_empty_pane_list() {
     let window: Window = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(window.panes, Window::default_panes());
 }
+
+#[test]
+fn window_deserializes_pane_keyword_as_panes() {
+    let yaml = r#"
+        name: win1
+        pane:
+            - commands:
+                - command1
+                - command2
+    "#;
+
+    let window: Window = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(
+        window,
+        Window {
+            name: Some(String::from("win1")),
+            panes: vec![Pane::from(vec![
+                String::from("command1"),
+                String::from("command2"),
+            ])],
+            ..Window::default()
+        }
+    );
+}
