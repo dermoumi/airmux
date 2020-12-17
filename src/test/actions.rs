@@ -252,7 +252,10 @@ fn get_project_list_returns_projects_without_extensions() {
     for n in 0..5 {
         let project_name = OsString::from(format!("project{}", n));
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     expected_project_list.sort();
@@ -272,21 +275,30 @@ fn list_shows_projects_in_subdirectories() {
     for n in 0..2 {
         let project_name = OsString::from(format!("project{}", n));
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
         let project_name = OsString::from(format!("subdir1/project{}", n));
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 4..6 {
         let project_name = OsString::from(format!("subdir2/project{}", n));
         mkdirp(temp_dir.join("subdir2")).unwrap();
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     expected_project_list.sort();
@@ -306,14 +318,20 @@ fn list_follows_symlinks() {
     for n in 0..2 {
         let project_name = OsString::from(format!("project{}", n));
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
         let project_name = OsString::from(format!("subdir1/project{}", n));
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
@@ -344,14 +362,20 @@ fn list_detects_symlink_loops() {
     for n in 0..2 {
         let project_name = OsString::from(format!("project{}", n));
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
         let project_name = OsString::from(format!("subdir1/project{}", n));
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
-        edit::create_project(&project_name, temp_dir.join(&project_name)).unwrap();
+        let project_path = temp_dir.join(&project_name);
+        let project_path = project::test_for_file_extensions(project_path).unwrap();
+
+        edit::create_project(&project_name, &project_path).unwrap();
         expected_project_list.push(project_name);
     }
     expected_project_list.sort();

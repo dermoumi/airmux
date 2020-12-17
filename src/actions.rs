@@ -219,7 +219,7 @@ pub fn edit_project<S1: AsRef<OsStr>, S2: AsRef<OsStr>>(
         ProjectFileIsADirectory { path: project_path }
     );
     if !project_path.exists() {
-        edit::create_project(project_name, &project_path)?;
+        edit::create_project(&project_name, &project_path)?;
     }
 
     // Open it with editor
@@ -340,11 +340,13 @@ mod project {
     ) -> Result<PathBuf, Box<dyn error::Error>> {
         let path = path.as_ref();
 
+        // If the path already contains an extension, use it directly
         if let Some(extension) = path.extension() {
             edit::check_supported_extension(extension)?;
             return Ok(path.to_path_buf());
         }
 
+        // Loop over extensions and try to file an existing file to reuse
         for extension in FILE_EXTENSIONS {
             let filename = path.with_extension(extension);
             if filename.exists() && !filename.is_dir() {
@@ -352,6 +354,7 @@ mod project {
             }
         }
 
+        // If no file was found, fall back to the first extension in the list
         return Ok(path.with_extension(FILE_EXTENSIONS[0]));
     }
 }
@@ -423,7 +426,8 @@ mod edit {
         project_name: S,
         project_path: P,
     ) -> Result<(), Box<dyn error::Error>> {
-        let project_name = strip_extension_from_project_name(project_name.as_ref());
+        let project_name = project_name.as_ref();
+        let project_name = strip_extension_from_project_name(project_name);
         let default_project_yml = include_str!("assets/default_project.yml")
             .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
 
