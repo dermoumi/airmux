@@ -318,7 +318,6 @@ fn project_deserializes_correctly() {
         on_restart: echo on_restart
         on_exit: echo on_exit
         on_stop: echo on_stop
-        on_create: echo on_create
         post_create: echo post_create
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
@@ -346,7 +345,6 @@ fn project_deserializes_correctly() {
             on_restart: vec![String::from("echo on_restart")],
             on_exit: vec![String::from("echo on_exit")],
             on_stop: vec![String::from("echo on_stop")],
-            on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
@@ -386,7 +384,6 @@ fn project_deserializer_accepts_empty_values() {
         on_restart:
         on_exit:
         on_stop:
-        on_create:
         post_create:
         on_pane_create:
         post_pane_create:
@@ -576,4 +573,14 @@ fn project_raises_error_on_invalid_working_dir_value() {
         .unwrap()
         .to_string()
         .contains("invalid type: sequence, expected path string"));
+}
+
+#[test]
+fn project_on_create_deserializes_as_on_first_start() {
+    let yaml = r#"
+        on_create: echo on_create
+    "#;
+
+    let project: Project = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(project.on_first_start, vec![String::from("echo on_create")]);
 }
