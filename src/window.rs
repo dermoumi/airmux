@@ -25,7 +25,7 @@ pub struct Window {
 
 impl Window {
     pub fn check(&self) -> Result<(), Box<dyn Error>> {
-        // Make sure the pane's
+        // Make sure the window's name is valid
         if let Some(name) = &self.name {
             valid_tmux_identifier(name)?;
         }
@@ -33,6 +33,10 @@ impl Window {
         // Check that split_from for each pane points to an existing pane
         for pane in &self.panes {
             pane.check()?;
+
+            if self.layout.is_some() && (pane.split.is_some() || pane.split_size.is_some()) {
+                Err("layout: cannot use layout when sub-panes use split or split_size")?;
+            }
 
             if let Some(split_from) = pane.split_from {
                 if split_from >= self.panes.len() {

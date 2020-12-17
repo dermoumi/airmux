@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::panesplit::PaneSplit;
 use tempfile::tempdir;
 
 use std::fs;
@@ -121,6 +122,44 @@ fn window_check_fails_when_working_dir_is_not_a_directory() {
             working_dir,
         ),
     );
+}
+
+#[test]
+fn window_check_fails_when_layout_and_split_are_both_used() {
+    let window = Window {
+        layout: Some(String::from("main-vertical")),
+        panes: vec![Pane {
+            split: Some(PaneSplit::Vertical),
+            ..Pane::default()
+        }],
+        ..Window::default()
+    };
+
+    let result = window.check();
+    assert!(result.is_err());
+    assert_eq!(
+        result.err().unwrap().to_string(),
+        "layout: cannot use layout when sub-panes use split or split_size",
+    )
+}
+
+#[test]
+fn window_check_fails_when_layout_and_split_size_are_both_used() {
+    let window = Window {
+        layout: Some(String::from("main-vertical")),
+        panes: vec![Pane {
+            split_size: Some(String::from("50%")),
+            ..Pane::default()
+        }],
+        ..Window::default()
+    };
+
+    let result = window.check();
+    assert!(result.is_err());
+    assert_eq!(
+        result.err().unwrap().to_string(),
+        "layout: cannot use layout when sub-panes use split or split_size",
+    )
 }
 
 #[test]
