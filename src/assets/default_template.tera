@@ -49,14 +49,12 @@ if-shell {{ '! ' ~ cmd ~ ' list-sessions -F "##S" | grep -Fx ' ~ session_name | 
     # On exit commands will only trigger while the session exists,
     # So we're adding them here before the on stop hooks
     {%- for command in project.on_exit %}
-    {%- set command = command | replace(from="__TMUX__", to=cmd)
-                              | replace(from="__SESSION__", to=session_name) %}
+    {%- set command = command | replace(from="__TMUX__", to=cmd) %}
     {%- set_global command_list = command_list ~ command ~ ';' %}
     {%- endfor %}
 
     {%- for command in project.on_stop %}
-    {%- set command = command | replace(from="__TMUX__", to=cmd)
-                              | replace(from="__SESSION__", to=session_name) %}
+    {%- set command = command | replace(from="__TMUX__", to=cmd) %}
     {%- set_global command_list = command_list ~ command ~ ';' %}
     {%- endfor %}
 
