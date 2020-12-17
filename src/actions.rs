@@ -93,15 +93,10 @@ pub fn start_project<S: AsRef<OsStr>>(
     if show_source {
         println!("{}", source);
     } else {
-        // Create dummy tmux session to make sure the tmux server is up and running
-        let (tmux_command, tmux_args) = project.get_tmux_command(vec![
-            OsString::from("new-session"),
-            OsString::from("-s"),
-            OsString::from("__rmux_dummy_session_"),
-            OsString::from("-d"),
-        ])?;
-        let mut dummy_command = Command::new(tmux_command);
-        dummy_command.args(tmux_args).output()?;
+        // Some tmux versions close the tmux server if there are no running sessions
+        // This prevents us from running `tmux source`.
+        // So we create a dummy tmux session that we'll discard at the end
+        let dummy_session = source::TmuxDummySession::new(&project)?;
 
         // Source our tmux config file
         let (tmux_command, tmux_args) =
@@ -126,14 +121,10 @@ pub fn start_project<S: AsRef<OsStr>>(
         // Wait until tmux completely finished processing input
         let status = child.wait()?;
 
-        // Remove dummy session
-        let (tmux_command, tmux_args) = project.get_tmux_command(vec![
-            OsString::from("kill-session"),
-            OsString::from("-t"),
-            OsString::from("__rmux_dummy_session_"),
-        ])?;
-        let mut dummy_command = Command::new(tmux_command);
-        let _ = dummy_command.args(tmux_args).output();
+        // Make sure to remove the dummy session before attaching,
+        // Otherwise it'll pollute the session list the entire time we're attached
+        // Because rmux won't quit until `tmux attach-session` returns
+        drop(dummy_session);
 
         // Check tmux exit code
         ensure!(
@@ -146,11 +137,18 @@ pub fn start_project<S: AsRef<OsStr>>(
         // Attach
         if project.attach {
             let session_name = project.session_name.as_ref().unwrap();
-            let (tmux_command, tmux_args) = project.get_tmux_command(vec![
-                OsString::from("attach-session"),
-                OsString::from("-t"),
-                OsString::from(session_name),
-            ])?;
+            let (tmux_command, tmux_args) = match option_env!("TMUX") {
+                Some(_) => project.get_tmux_command(vec![
+                    OsString::from("switch-client"),
+                    OsString::from("-t"),
+                    OsString::from(session_name),
+                ])?,
+                None => project.get_tmux_command(vec![
+                    OsString::from("attach-session"),
+                    OsString::from("-t"),
+                    OsString::from(session_name),
+                ])?,
+            };
             Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
         }
     }
@@ -346,6 +344,45 @@ mod source {
             )))?;
 
             Ok(json!(String::from(quote(str_value))))
+        }
+    }
+
+    pub struct TmuxDummySession<'a> {
+        project: &'a Project,
+    }
+
+    impl<'a> TmuxDummySession<'a> {
+        pub fn new(project: &'a Project) -> Result<TmuxDummySession, Box<dyn error::Error>> {
+            // Create dummy tmux session to make sure the tmux server is up and running
+            let (tmux_command, tmux_args) = project.get_tmux_command(vec![
+                OsString::from("new-session"),
+                OsString::from("-s"),
+                OsString::from("__rmux_dummy_session_"),
+                OsString::from("-d"),
+            ])?;
+
+            let _ = Command::new(tmux_command)
+                .args(tmux_args)
+                .env_remove("TMUX")
+                .spawn()?
+                .wait();
+
+            Ok(TmuxDummySession { project })
+        }
+    }
+
+    impl<'a> Drop for TmuxDummySession<'a> {
+        fn drop(&mut self) {
+            // Remove dummy session
+            if let Ok((tmux_command, tmux_args)) = self.project.get_tmux_command(vec![
+                OsString::from("kill-session"),
+                OsString::from("-t"),
+                OsString::from("__rmux_dummy_session_"),
+            ]) {
+                if let Ok(mut child) = Command::new(tmux_command).args(tmux_args).spawn() {
+                    let _ = child.wait();
+                }
+            }
         }
     }
 }
