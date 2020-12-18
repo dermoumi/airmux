@@ -5,13 +5,6 @@ settings:
   - InferSubcommands
   - ColoredHelp
 args:
-  - tmux_command:
-      global: true
-      help: tmux command to use
-      short: t
-      long: command
-      value_name: COMMAND
-      env: RMUX_COMMAND
   - config_dir:
       global: true
       help: configuration directory to use
@@ -56,6 +49,13 @@ subcommands:
             help: arguments to be passed as variables to the yaml file
             value_name: ARGUMENT
             multiple: true
+        - tmux_command:
+            global: true
+            help: tmux command to use
+            short: t
+            long: command
+            value_name: COMMAND
+            env: RMUX_COMMAND
   - debug:
       settings:
         - ColoredHelp
@@ -87,6 +87,13 @@ subcommands:
             help: arguments to be passed as variables to the yaml file
             value_name: ARGUMENT
             multiple: true
+        - tmux_command:
+            global: true
+            help: tmux command to use
+            short: t
+            long: command
+            value_name: COMMAND
+            env: RMUX_COMMAND
   - kill:
       settings:
         - ColoredHelp
@@ -100,6 +107,13 @@ subcommands:
             help: arguments to be passed as variables to the yaml file
             value_name: ARGUMENT
             multiple: true
+        - tmux_command:
+            global: true
+            help: tmux command to use
+            short: t
+            long: command
+            value_name: COMMAND
+            env: RMUX_COMMAND
   - edit:
       settings:
         - ColoredHelp
@@ -131,6 +145,13 @@ subcommands:
             help: arguments to be passed as variables to the yaml file when checking
             value_name: ARGUMENT
             multiple: true
+        - tmux_command:
+            global: true
+            help: tmux command to use when checking
+            short: t
+            long: command
+            value_name: COMMAND
+            env: RMUX_COMMAND
   - remove:
       settings:
         - ColoredHelp
