@@ -22,6 +22,7 @@ fn main() -> Result<(), MainError> {
 
     match matches.subcommand() {
         ("start", Some(sub_matches)) => command_start(sub_matches),
+        ("debug", Some(sub_matches)) => command_debug(sub_matches),
         ("kill", Some(sub_matches)) => command_kill(sub_matches),
         ("edit", Some(sub_matches)) => command_edit(sub_matches),
         ("remove", Some(sub_matches)) => command_remove(sub_matches),
@@ -38,7 +39,6 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let template = matches.value_of_os("template");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
-    let source = matches.is_present("debug");
     let verbose = matches.is_present("verbose");
     let args = matches.values_of_lossy("args").unwrap_or(vec![]);
 
@@ -55,7 +55,36 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         project_name.map(|s| s.to_os_string()),
         template.map(|s| s.to_os_string()),
         force_attach,
-        source,
+        false,
+        verbose,
+        args,
+    )
+}
+
+fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
+    let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
+
+    let project_name = matches.value_of_os("project_name");
+    let template = matches.value_of_os("template");
+    let attach = matches.is_present("attach");
+    let no_attach = matches.is_present("no_attach");
+    let verbose = matches.is_present("verbose");
+    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+
+    let force_attach = if attach {
+        Some(true)
+    } else if no_attach {
+        Some(false)
+    } else {
+        None
+    };
+
+    actions::start_project(
+        &config,
+        project_name.map(|s| s.to_os_string()),
+        template.map(|s| s.to_os_string()),
+        force_attach,
+        true,
         verbose,
         args,
     )
