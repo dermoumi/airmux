@@ -33,7 +33,6 @@ FLAGS:
 
 OPTIONS:
     -c, --config-dir <DIR>     configuration directory to use [env: RMUX_CONFIG=]
-    -t, --command <COMMAND>    tmux command to use [env: RMUX_COMMAND=]
 
 SUBCOMMANDS:
     debug     only print tmux command source without actually running tmux
