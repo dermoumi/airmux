@@ -13,6 +13,7 @@ Just another tool that allows you to configure tmux sessions using YAML (or JSON
       - [Pane definition](#pane-definition)
       - [Layouts](#layouts)
       - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
+    - [Local project files](#local-project-files)
     - [Other commands](#other-commands)
   - [Copyright](#copyright)
 
@@ -352,6 +353,20 @@ windows:
 ```bash
 # pipenv run server will run at port 8080 instead of the default 8000
 $ rmux start my_project 8080
+```
+
+### Local project files
+
+Commands that accept a project name can be called without it to use a local `.rmux.(yml|yaml|json)` project file
+instead.
+
+If no local project file exists, Rmux will look into each ancestor to the current working directory until it finds one.
+Otherwise, it will default to `.rmux.yml` on the current directory.
+
+You can specify the extension of the local project file when creating it:
+
+```console
+$ rmux edit --ext json
 ```
 
 ### Other commands
