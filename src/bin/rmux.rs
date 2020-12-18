@@ -6,7 +6,6 @@ use clap::{crate_description, crate_name, crate_version, load_yaml, App, ArgMatc
 use main_error::MainError;
 
 use std::error::Error;
-use std::fs;
 
 pub const APP_NAME: &'static str = crate_name!();
 pub const APP_AUTHOR: &'static str = "rmux";
@@ -35,7 +34,7 @@ fn main() -> Result<(), MainError> {
 fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches.value_of_os("project_name").unwrap();
+    let project_name = matches.value_of_os("project_name");
     let template = matches.value_of_os("template");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
@@ -51,19 +50,10 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         None
     };
 
-    let template_content;
-    let template = match template {
-        Some(filename) => {
-            template_content = fs::read_to_string(filename)?;
-            Some(template_content.as_str())
-        }
-        _ => None,
-    };
-
     actions::start_project(
         &config,
-        project_name,
-        template,
+        project_name.map(|s| s.to_os_string()),
+        template.map(|s| s.to_os_string()),
         force_attach,
         source,
         verbose,
@@ -74,31 +64,38 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
 fn command_kill(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches.value_of_os("project_name").unwrap();
+    let project_name = matches.value_of_os("project_name");
     let args = matches.values_of_lossy("args").unwrap_or(vec![]);
 
-    actions::kill_project(&config, project_name, args)
+    actions::kill_project(&config, project_name.map(|s| s.to_os_string()), args)
 }
 
 fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches.value_of_os("project_name").unwrap();
-    let extension = matches.value_of_os("extension").unwrap();
+    let project_name = matches.value_of_os("project_name");
+    let extension = matches.value_of_os("extension");
     let editor = matches.value_of_os("editor").unwrap();
     let no_check = matches.is_present("no_check");
     let args = matches.values_of_lossy("args").unwrap_or(vec![]);
 
-    actions::edit_project(&config, project_name, extension, editor, no_check, args)
+    actions::edit_project(
+        &config,
+        project_name.map(|s| s.to_os_string()),
+        extension.map(|s| s.to_os_string()),
+        editor,
+        no_check,
+        args,
+    )
 }
 
 fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
-    let project_name = matches.value_of_os("project_name").unwrap();
+    let project_name = matches.value_of_os("project_name");
     let no_input = matches.is_present("no_input");
 
-    actions::remove_project(&config, project_name, no_input)
+    actions::remove_project(&config, project_name.map(|s| s.to_os_string()), no_input)
 }
 
 fn command_list(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {

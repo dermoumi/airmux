@@ -33,7 +33,6 @@ subcommands:
         - project_name:
             help: name of the project
             value_name: PROJECT_NAME
-            required: true
             index: 1
         - template:
             help: template file for generating tmux commands
@@ -69,7 +68,6 @@ subcommands:
         - project_name:
             help: name of the project
             value_name: PROJECT_NAME
-            required: true
             index: 1
         - args:
             help: arguments to be passed as variables to the yaml file
@@ -84,7 +82,6 @@ subcommands:
         - project_name:
             help: name of the project
             value_name: PROJECT_NAME
-            required: true
             index: 1
         - extension:
             help: the extension to use for the project file (yml|yaml|json)
