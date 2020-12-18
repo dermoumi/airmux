@@ -48,10 +48,37 @@ subcommands:
             help: don't automatically attach the session
             short: d
             long: no-attach
-        - debug:
-            help: only print tmux command source without actually running tmux
-            long: debug
-            short: D
+        - verbose:
+            help: shows notification on whether session was created, updated or not changed at all
+            long: verbose
+            short: V
+        - args:
+            help: arguments to be passed as variables to the yaml file
+            value_name: ARGUMENT
+            multiple: true
+  - debug:
+      settings:
+        - ColoredHelp
+      about: only print tmux command source without actually running tmux
+      args:
+        - project_name:
+            help: name of the project
+            value_name: PROJECT_NAME
+            index: 1
+        - template:
+            help: template file for generating tmux commands
+            short: m
+            long: template
+            value_name: TEMPLATE
+        - attach:
+            help: force attach the session (ignored)
+            short: a
+            long: attach
+            conflicts_with: no_attach
+        - no_attach:
+            help: don't automatically attach the session (ignored)
+            short: d
+            long: no-attach
         - verbose:
             help: shows notification on whether session was created, updated or not changed at all
             long: verbose

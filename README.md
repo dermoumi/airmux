@@ -15,6 +15,10 @@ Just another tool that allows you to configure tmux sessions using YAML (or JSON
       - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
     - [Local project files](#local-project-files)
     - [Other commands](#other-commands)
+      - [List all projects](#list-all-projects)
+      - [Stop the session corresponding to a project](#stop-the-session-corresponding-to-a-project)
+      - [Delete a project](#delete-a-project)
+      - [Debug session creation](#debug-session-creation)
   - [Copyright](#copyright)
 
 ## Usage
@@ -32,6 +36,7 @@ OPTIONS:
     -t, --command <COMMAND>    tmux command to use [env: RMUX_COMMAND=]
 
 SUBCOMMANDS:
+    debug     only print tmux command source without actually running tmux
     edit      Create or edit a project
     help      Prints this message or the help of the given subcommand(s)
     kill      Kill tmux session that matches the project
@@ -371,22 +376,37 @@ $ rmux edit --ext json
 
 ### Other commands
 
-List all projects:
+#### List all projects
 
 ```console
 $ rmux list
 ```
 
-Stop the session corresponding to a project:
+#### Stop the session corresponding to a project
 
 ```console
 $ rmux kill my_project
 ```
 
-Delete a project:
+#### Delete a project
 
 ```console
 $ rmux remove my_project
+```
+
+#### Debug session creation
+
+```console
+$ rmux debug my_project
+```
+
+Prints all the commands that are passed to `tmux source` to create the session, complete with hooks and everything.
+
+You can save the output and use it directly without passing through `rmux`.
+As long as the tmux server is already running. Also, it never attaches the session.
+
+```console
+$ rmux debug my_project | tmux source
 ```
 
 ## Copyright
