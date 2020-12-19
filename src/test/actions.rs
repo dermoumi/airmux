@@ -73,7 +73,7 @@ fn edit_project_succeeds_when_project_file_exists() {
     let projects_dir = test_config.get_projects_dir("").unwrap();
     let project_path = projects_dir.join(&project_name).with_extension("yml");
     mkdirp(projects_dir).unwrap();
-    edit::create_project(&project_name, &project_path).unwrap();
+    edit::create_project(&project_name, &project_path, None).unwrap();
     assert!(project_path.is_file());
 
     // Run edit_project
@@ -219,7 +219,7 @@ fn remove_project_removes_existing_project() {
     let projects_dir = test_config.get_projects_dir("").unwrap();
     let project_path = projects_dir.join(&project_name).with_extension("yml");
     mkdirp(projects_dir).unwrap();
-    edit::create_project(&project_name, &project_path).unwrap();
+    edit::create_project(&project_name, &project_path, None).unwrap();
     assert!(project_path.is_file());
 
     let result = remove_project(&test_config, Some(project_name), true);
@@ -242,7 +242,7 @@ fn remove_project_removes_parent_subdirectories_if_empty() {
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
     let project_path = projects_dir.join(&project_name).with_extension("yml");
-    edit::create_project(&project_name, &project_path).unwrap();
+    edit::create_project(&project_name, &project_path, None).unwrap();
     assert!(project_path.is_file());
 
     let result = remove_project(&test_config, Some(project_name), true);
@@ -269,11 +269,11 @@ fn remove_project_does_not_remove_parent_subdirs_if_not_empty() {
     let projects_dir = test_config.get_projects_dir("").unwrap();
 
     let project1_path = projects_dir.join(&project1_name).with_extension("yml");
-    edit::create_project(&project1_name, &project1_path).unwrap();
+    edit::create_project(&project1_name, &project1_path, None).unwrap();
     assert!(project1_path.is_file());
 
     let project2_path = projects_dir.join(&project2_name).with_extension("yml");
-    edit::create_project(&project2_name, &project2_path).unwrap();
+    edit::create_project(&project2_name, &project2_path, None).unwrap();
     assert!(project2_path.is_file());
 
     let result = remove_project(&test_config, Some(project1_name), true);
@@ -347,7 +347,7 @@ fn list_project_does_not_fail() {
     for n in 0..5 {
         let project_name = OsString::from(format!("project{}", n));
 
-        edit::create_project(&project_name, projects_dir.join(&project_name)).unwrap();
+        edit::create_project(&project_name, projects_dir.join(&project_name), None).unwrap();
     }
 
     list_projects(&test_config).unwrap();
@@ -365,7 +365,7 @@ fn get_project_list_returns_projects_without_extensions() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     expected_project_list.sort();
@@ -388,7 +388,7 @@ fn list_shows_projects_in_subdirectories() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
@@ -398,7 +398,7 @@ fn list_shows_projects_in_subdirectories() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 4..6 {
@@ -408,7 +408,7 @@ fn list_shows_projects_in_subdirectories() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     expected_project_list.sort();
@@ -431,7 +431,7 @@ fn list_follows_symlinks() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
@@ -441,7 +441,7 @@ fn list_follows_symlinks() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
@@ -475,7 +475,7 @@ fn list_detects_symlink_loops() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
@@ -485,7 +485,7 @@ fn list_detects_symlink_loops() {
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
 
-        edit::create_project(&project_name, &project_path).unwrap();
+        edit::create_project(&project_name, &project_path, None).unwrap();
         expected_project_list.push(project_name);
     }
     expected_project_list.sort();
