@@ -191,8 +191,13 @@ where
     S: AsRef<OsStr>,
 {
     let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let extension = match extension {
+        Some(extension) => extension.to_string_lossy().to_string(),
+        None => project_file
+            .extension()
+            .map_or(String::from("yml"), |e| e.to_string_lossy().to_string()),
+    };
 
-    let extension = extension.unwrap_or(OsString::from("yml"));
     edit::check_supported_extension(&extension)?;
     let project_file = project_file.with_extension(&extension);
 
@@ -200,7 +205,7 @@ where
         config,
         project_name,
         project_file,
-        extension,
+        extension.as_str(),
         editor,
         None,
         no_check,
@@ -291,8 +296,13 @@ where
     }
 
     let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let extension = match extension {
+        Some(extension) => extension.to_string_lossy().to_string(),
+        None => project_file
+            .extension()
+            .map_or(String::from("yml"), |e| e.to_string_lossy().to_string()),
+    };
 
-    let extension = extension.unwrap_or(OsString::from("yml"));
     edit::check_supported_extension(&extension)?;
     let project_file = project_file.with_extension(&extension);
 
@@ -315,7 +325,7 @@ where
         config,
         project_name,
         project_file,
-        extension,
+        extension.as_str(),
         editor,
         Some(content),
         no_check,
@@ -540,6 +550,7 @@ mod edit {
     pub fn create_project<S, P>(
         project_name: S,
         project_path: P,
+        extension: &str,
         content: Option<String>,
     ) -> Result<(), Box<dyn error::Error>>
     where
@@ -554,8 +565,26 @@ mod edit {
 
         let content = match content {
             Some(content) => content,
-            None => include_str!("assets/default_project.yml")
-                .replace("__PROJECT_NAME__", &project_name.to_string_lossy()),
+            None => {
+                let as_json = extension == "json";
+
+                let content = if as_json {
+                    include_str!("assets/default_project.json")
+                } else {
+                    include_str!("assets/default_project.yml")
+                };
+
+                let project_name = project_name.to_string_lossy();
+                let project_name = if as_json {
+                    serde_json::to_string(&project_name)?
+                } else {
+                    // serde_yaml adds '---\n' at the beginning that we need to get rid of before using the name
+                    let serialized = serde_yaml::to_string(&project_name)?;
+                    serialized[4..].to_string()
+                };
+
+                content.replace("__PROJECT_NAME__", &project_name)
+            }
         };
 
         file.write_all(content.as_bytes())?;
@@ -592,7 +621,7 @@ mod edit {
         config: &Config,
         project_name: OsString,
         project_file: PathBuf,
-        _extension: OsString,
+        extension: &str,
         editor: S,
         content: Option<String>,
         no_check: bool,
@@ -616,7 +645,7 @@ mod edit {
         );
 
         if !project_file.exists() || content.is_some() {
-            edit::create_project(&project_name, &project_file, content)?;
+            edit::create_project(&project_name, &project_file, extension, content)?;
         }
 
         // Open it with editor

@@ -1,0 +1,23 @@
+{
+    "name": __PROJECT_NAME__,
+    "root": "~/",
+    "on_create": [],
+    "on_stop": [],
+    "windows": [
+        {
+            "name": "window1",
+            "root": "$HOME/",
+            "panes": [
+                "echo hello"
+            ]
+        },
+        {
+            "name": "~",
+            "layout": "main-vertical",
+            "panes": [
+                "echo 'pane 1'",
+                "echo 'pane 2'"
+            ]
+        }
+    ]
+}

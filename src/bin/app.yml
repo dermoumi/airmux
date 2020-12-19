@@ -135,7 +135,6 @@ subcommands:
             short: e
             long: ext
             value_name: FILE_EXT
-            default_value: yml
             possible_values:
               - yml
               - yaml
@@ -205,7 +204,6 @@ subcommands:
             short: e
             long: ext
             value_name: FILE_EXT
-            default_value: yml
             possible_values:
               - yml
               - yaml

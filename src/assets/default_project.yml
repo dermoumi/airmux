@@ -1,120 +1,24 @@
-# All fields are optional but at least one is required
-# You can use ${ENV_VAR} or ${ENV_VAR:-fallback_value} to expand environment variables
-# Escape $ by writing it twice: $$ENV_VAR -> $ENV_VAR
-
-# Session name. If not specified defaults to project name. Should not contain `:` or `.`
-# Default: project name
-# Alias: session_name
+# Name of the session
 name: __PROJECT_NAME__
-
-# Root directory for windows and panes. Can be overridden for each window or panel.
-# Default: current working directory
-# Alias: working_dir
-root: ~
-
-# Attach the project after creation. Can be overridden with --attach and --no-attach arguments
-# Default: true
-attach: true
-
-# Tmux command to use, can be overridden with --command
-# You can add any flags and options here
-# Default: tmux
-tmux_command:
-
-# Tmux socket name, then again you could pass options directly to tmux_command
-# This is appended to tmux_command, --command flag can't override this
-# Optional
-# Alias: tmux_socket
-socket_name:
-
-# Tmux options, this is only here to make transition from tmuxinator easier
-# This is appended to tmux_command and socket_name, --command flag can't override this
-# Optional
-tmux_options:
-
-# All window indexes start at this number
-# Default: 1
-window_base_index:
-
-# All panel indexes start at this number
-# Note: panes' split_from value does not use tmux indexes and is inaffected by this value
-# Default: 1
-pane_base_index:
-
-# Start up window. The actual tmux index, starting with window_base_index value.
-# Can also be a name, in which case will use the first window with that name if it exists
-# Default: First window
-startup_window:
-
-# List of windows
-# Default: a single nameless window
+# Root directory of the session
+root: ~/
+# Commands to execute when creating the session
+on_create:
+# Commands to execute when closing the session
+on_stop:
+# List of windows of session
 windows:
+  # window1 is the name of the window
   - window1:
-      # Root directory for all child panes
-      # Default to parent session's
-      # Alias: working_dir
-      root: /home/
-      # A list of 3 panes
+      # Root directory of the window
+      root: $HOME/
       panes:
-        # Empty pane with no commands
-        - commands: []
-        # You can also keep it empty, pass an empty array, null or ~
-        - []
-        # 3rd pane with `/` as current working directory
-        # Defaults to parent window's
-        - root: /
-          # Splits vertically from the previous pane...
-          # valid values: v, h, vertical, horizontal
-          # Default: horizontal
-          split: vertical
-          # ...or from pane at index 0 (this list's indexes, not tmux pane indexes)
-          # Default: previous pane
-          split_from: 0
-          # set its size at 20 columns
-          # Default: 50%
-          split_size: 20
-          # Shell commands to run in the pane
-          # Alias: command
-          commands:
-            - exec fish -C 'echo hello'
-            - pwd
-          # _tmux_ commands to run after the pane is ready
-          post_create:
-            # Send Ctrl+L to clear the screen.
-            # __TMUX__, __SESSION__, __WINDOW__, __PANE__ are substiuted with tmux_command, session, window and pane identifiers respectively
-            - __TMUX__ send-keys -t __PANE__ C-l
+        - echo hello
   # You can use null or ~ to use the default window name
   - ~:
-      # You can choose one of the 5 default layouts:
-      # even-horizontal, even-vertical, main-horizontal, main-vertical, or tiled
+      # Any valid tmux layout is accepted
       layout: main-vertical
       # Short form for panes, with a single command each:
       panes:
-        - echo 'pane1'
-        - echo 'pane2'
-        - echo 'pane3'
-        - echo 'pane4'
-        - echo 'pane5'
-  # A window with a custom layout
-  - custom_window:
-      # You can copy the layout from the `tmux list-windows` command
-      layout: a72b,121x57,0,0[121x40,0,0{50x40,0,0,377,70x40,51,0[70x20,51,0,382,70x19,51,21,383]},121x16,0,41{79x16,0,41,378,41x16,80,41,380}]
-      panes:
-        - echo 'pane1'
-        - echo 'pane2'
-        - echo 'pane3'
-        - echo 'pane4'
-        - commands:
-          - echo 'pane5 cmd1'
-          - echo 'pand5 cmd2'
-  # A window with no options and just panes
-  - window_of_panes:
-    - echo 'Short Change Pane'
-    -
-    - split: vertical
-      split_size: 25%
-    - echo 'Final Pane VIII Remake'
-  # A nameless window with a single command
-  - echo henlo
-  # An empty nameless window
-  -
+        - echo 'pane 1'
+        - echo 'pane 2'
