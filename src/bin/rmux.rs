@@ -37,7 +37,6 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_os("project_name");
-    let template = matches.value_of_os("template");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let verbose = matches.is_present("verbose");
@@ -54,7 +53,6 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::start_project(
         &config,
         project_name.map(|s| s.to_os_string()),
-        template.map(|s| s.to_os_string()),
         force_attach,
         false,
         verbose,
@@ -66,7 +64,6 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_os("project_name");
-    let template = matches.value_of_os("template");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let verbose = matches.is_present("verbose");
@@ -83,7 +80,6 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::start_project(
         &config,
         project_name.map(|s| s.to_os_string()),
-        template.map(|s| s.to_os_string()),
         force_attach,
         true,
         verbose,

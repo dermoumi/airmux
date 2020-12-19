@@ -30,11 +30,6 @@ subcommands:
             help: name of the project
             value_name: PROJECT_NAME
             index: 1
-        - template:
-            help: template file for generating tmux commands
-            short: m
-            long: template
-            value_name: TEMPLATE
         - attach:
             help: force attach the session
             short: a
@@ -69,11 +64,6 @@ subcommands:
             help: name of the project
             value_name: PROJECT_NAME
             index: 1
-        - template:
-            help: template file for generating tmux commands
-            short: m
-            long: template
-            value_name: TEMPLATE
         - attach:
             help: force attach the session (ignored)
             short: a

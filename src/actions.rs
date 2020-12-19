@@ -47,7 +47,6 @@ pub enum Error {
 pub fn start_project(
     config: &Config,
     project_name: Option<OsString>,
-    template_file: Option<OsString>,
     force_attach: Option<bool>,
     show_source: bool,
     verbose: bool,
@@ -67,14 +66,10 @@ pub fn start_project(
     let template_comand = project.get_tmux_command_for_template()?;
     context.insert("tmux_command", &template_comand);
 
-    let template_content = match template_file {
-        Some(template_file) => fs::read_to_string(template_file)?,
-        None => include_str!("assets/default_template.tera").to_string(),
-    };
-
     let mut tera = Tera::default();
     tera.register_filter("quote", source::QuoteFilter {});
-    let source = tera.render_str(template_content.as_str(), &context)?;
+    let template = include_str!("assets/default_template.tera").to_string();
+    let source = tera.render_str(template.as_str(), &context)?;
 
     // Run tmux
     if show_source {
