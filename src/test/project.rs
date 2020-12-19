@@ -584,3 +584,56 @@ fn project_on_create_deserializes_as_on_first_start() {
     let project: Project = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(project.on_first_start, vec![String::from("echo on_create")]);
 }
+
+#[test]
+fn project_pane_no_command_serializes_to_an_empty_string() {
+    let mut project = Project::default();
+    project.windows[0].panes[0] = Pane {
+        commands: vec![],
+        ..Pane::default()
+    };
+
+    let output = project.serialize_compact(false).unwrap();
+    let expected_output = r#"---
+{}"#;
+
+    assert_eq!(output, expected_output);
+}
+
+#[test]
+fn project_pane_single_command_serializes_to_a_single_string() {
+    let mut project = Project::default();
+    project.windows[0].panes[0] = Pane {
+        commands: vec![String::from("echo cmd1")],
+        ..Pane::default()
+    };
+
+    let output = project.serialize_compact(false).unwrap();
+    let expected_output = r#"---
+windows:
+  - name: ~
+    panes:
+      - echo cmd1"#;
+
+    assert_eq!(output, expected_output);
+}
+
+#[test]
+fn project_pane_two_or_more_commands_serializes_to_a_full_object() {
+    let mut project = Project::default();
+    project.windows[0].panes[0] = Pane {
+        commands: vec![String::from("echo cmd1"), String::from("echo cmd2")],
+        ..Pane::default()
+    };
+
+    let output = project.serialize_compact(false).unwrap();
+    let expected_output = r#"---
+windows:
+  - name: ~
+    panes:
+      - commands:
+          - echo cmd1
+          - echo cmd2"#;
+
+    assert_eq!(output, expected_output);
+}
