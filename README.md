@@ -293,8 +293,7 @@ panes:
     working_dir: <window's working directory>
 
     # The pane to split from when creating this one. Does not apply to the first pane.
-    # It uses tmux' index for the pane at that point, and it might not match the order
-    # in which the panes were created. So it might need a bit of trial and error to get it right.
+    # These indexes always start at 0 (per window), and follow the same order as in the project file
     split_from: <previous pane>
 
     # How to split when creating this pane (v, vertical, h, horizontal)
