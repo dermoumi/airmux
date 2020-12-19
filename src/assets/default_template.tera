@@ -189,21 +189,27 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     {%- endfor %}
 
     {%- for command in project.pane_commands %}
+    {%- if command != "" %}
     {%- set cmd_quoted = command | quote %}
     {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
     run-shell {{ send_keys_cmd }}
+    {%- endif %}
     {%- endfor %}
 
     {%- for command in window.pane_commands %}
+    {%- if command != "" %}
     {%- set cmd_quoted = command | quote %}
     {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
     run-shell {{ send_keys_cmd }}
+    {%- endif %}
     {%- endfor %}
 
     {%- for command in pane.commands %}
+    {%- if command != "" %}
     {%- set cmd_quoted = command | quote %}
     {%- set send_keys_cmd = cmd ~ ' send-keys -t ' ~ target_pane ~ ' ' ~ cmd_quoted ~ ' C-m' | quote %}
     run-shell {{ send_keys_cmd }}
+    {%- endif %}
     {%- endfor %}
 
     {%- for command in project.post_pane_create %}
