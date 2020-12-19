@@ -141,7 +141,7 @@ fn get_projects_dir_returns_correct_path() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
 
-    let expected_path = temp_dir.join(PROJECTS_SUBDIR);
+    let expected_path = temp_dir.to_owned();
     let test_config = make_config(None, None, None, Some(temp_dir));
 
     let result = test_config.get_projects_dir("").unwrap();
@@ -154,7 +154,7 @@ fn get_projects_dir_returns_correct_subdir_path() {
     let temp_dir = temp_dir.path().to_path_buf();
 
     let subdir = "my_subdir";
-    let expected_path = temp_dir.join(PROJECTS_SUBDIR).join(subdir);
+    let expected_path = temp_dir.join(subdir);
     let test_config = make_config(None, None, None, Some(temp_dir));
 
     let result = test_config.get_projects_dir(subdir).unwrap();

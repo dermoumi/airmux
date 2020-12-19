@@ -9,8 +9,6 @@ use std::error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-const PROJECTS_SUBDIR: &'static str = "projects";
-
 #[derive(Debug, Snafu)]
 pub enum Error {
     #[snafu(display("app_name cannot be empty"))]
@@ -88,9 +86,7 @@ impl Config {
         &self,
         sub_path: P,
     ) -> Result<PathBuf, Box<dyn error::Error>> {
-        let projects_path = PathBuf::from(PROJECTS_SUBDIR);
-
-        self.get_config_dir(projects_path.join(sub_path))
+        self.get_config_dir(sub_path)
     }
 
     pub fn get_tmux_command(
