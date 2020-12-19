@@ -1,11 +1,14 @@
 use crate::command::de_command_list;
 use crate::config::Config;
+use crate::pane::Pane;
+use crate::panesplit::PaneSplit;
 use crate::project_template::ProjectTemplate;
 use crate::startup_window::StartupWindow;
-use crate::utils::{parse_command, valid_tmux_identifier};
+use crate::utils::{is_default, parse_command, valid_tmux_identifier};
 use crate::window::Window;
-use crate::working_dir::de_working_dir;
+use crate::working_dir::{de_working_dir, ser_working_dir};
 
+use serde::ser::{SerializeSeq, Serializer};
 use serde::{de, Deserialize, Serialize};
 use shell_words::{quote, split};
 
@@ -163,8 +166,16 @@ impl Project {
         1
     }
 
+    fn is_default_window_base_index(value: &usize) -> bool {
+        value == &Self::default_window_base_index()
+    }
+
     fn default_pane_base_index() -> usize {
         1
+    }
+
+    fn is_default_pane_base_index(value: &usize) -> bool {
+        value == &Self::default_pane_base_index()
     }
 
     fn default_windows() -> Vec<Window> {
@@ -173,6 +184,10 @@ impl Project {
 
     fn default_attach() -> bool {
         true
+    }
+
+    fn is_default_attach(attach: &bool) -> bool {
+        attach == &Self::default_attach()
     }
 
     fn de_window_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
@@ -209,6 +224,217 @@ impl Project {
             WindowList::List(windows) => windows,
             WindowList::Single(window) => vec![window],
             WindowList::Empty => Self::default_windows(),
+        })
+    }
+
+    pub fn serialize_compact(&self, json: bool) -> Result<String, Box<dyn Error>> {
+        fn is_default_windows(windows: &Vec<CompactWindow>) -> bool {
+            &Project::default_windows()
+                .into_iter()
+                .map(|w| CompactWindow::from(w))
+                .collect::<Vec<CompactWindow>>()
+                == windows
+        }
+
+        pub fn is_default_panes(panes: &Vec<CompactPane>) -> bool {
+            &Window::default_panes()
+                .into_iter()
+                .map(|p| CompactPane::from(p))
+                .collect::<Vec<CompactPane>>()
+                == panes
+        }
+
+        #[derive(Serialize, PartialEq)]
+        pub struct CompactProject {
+            #[serde(skip_serializing_if = "is_default")]
+            pub session_name: Option<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub tmux_command: Option<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub tmux_options: Option<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub tmux_socket: Option<String>,
+            #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
+            pub working_dir: Option<PathBuf>,
+            #[serde(skip_serializing_if = "Project::is_default_window_base_index")]
+            pub window_base_index: usize,
+            #[serde(skip_serializing_if = "Project::is_default_pane_base_index")]
+            pub pane_base_index: usize,
+            #[serde(skip_serializing_if = "is_default")]
+            pub startup_window: StartupWindow,
+            #[serde(skip_serializing_if = "is_default")]
+            pub startup_pane: Option<usize>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_start: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_first_start: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_restart: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_exit: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_stop: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub post_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_pane_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub post_pane_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub pane_commands: Vec<String>,
+            #[serde(skip_serializing_if = "Project::is_default_attach")]
+            pub attach: bool,
+            #[serde(skip_serializing_if = "is_default")]
+            pub template: ProjectTemplate,
+            #[serde(skip_serializing_if = "is_default_windows")]
+            pub windows: Vec<CompactWindow>,
+        }
+
+        impl From<Project> for CompactProject {
+            fn from(copy: Project) -> Self {
+                Self {
+                    session_name: copy.session_name,
+                    tmux_command: copy.tmux_command,
+                    tmux_options: copy.tmux_options,
+                    tmux_socket: copy.tmux_socket,
+                    working_dir: copy.working_dir,
+                    window_base_index: copy.window_base_index,
+                    pane_base_index: copy.pane_base_index,
+                    startup_window: copy.startup_window,
+                    startup_pane: copy.startup_pane,
+                    on_start: copy.on_start,
+                    on_first_start: copy.on_first_start,
+                    on_restart: copy.on_restart,
+                    on_exit: copy.on_exit,
+                    on_stop: copy.on_stop,
+                    post_create: copy.post_create,
+                    on_pane_create: copy.on_pane_create,
+                    post_pane_create: copy.post_pane_create,
+                    pane_commands: copy.pane_commands,
+                    attach: copy.attach,
+                    template: copy.template,
+                    windows: copy
+                        .windows
+                        .into_iter()
+                        .map(|w| CompactWindow::from(w))
+                        .collect(),
+                }
+            }
+        }
+
+        #[derive(Serialize, PartialEq)]
+        pub struct CompactWindow {
+            pub name: Option<String>,
+            #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
+            pub working_dir: Option<PathBuf>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub layout: Option<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub post_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_pane_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub post_pane_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub pane_commands: Vec<String>,
+            #[serde(skip_serializing_if = "is_default_panes", serialize_with = "ser_panes")]
+            pub panes: Vec<CompactPane>,
+        }
+
+        impl From<Window> for CompactWindow {
+            fn from(copy: Window) -> Self {
+                Self {
+                    name: copy.name,
+                    working_dir: copy.working_dir,
+                    layout: copy.layout,
+                    on_create: copy.on_create,
+                    post_create: copy.post_create,
+                    on_pane_create: copy.on_pane_create,
+                    post_pane_create: copy.post_pane_create,
+                    pane_commands: copy.pane_commands,
+                    panes: copy
+                        .panes
+                        .into_iter()
+                        .map(|p| CompactPane::from(p))
+                        .collect(),
+                }
+            }
+        }
+
+        #[derive(Serialize, PartialEq)]
+        pub struct CompactPane {
+            #[serde(skip_serializing_if = "is_default")]
+            pub name: Option<String>,
+            #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
+            pub working_dir: Option<PathBuf>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub split: Option<PaneSplit>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub split_from: Option<usize>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub split_size: Option<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub clear: bool,
+            #[serde(skip_serializing_if = "is_default")]
+            pub on_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub post_create: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub commands: Vec<String>,
+        }
+
+        impl From<Pane> for CompactPane {
+            fn from(copy: Pane) -> Self {
+                Self {
+                    name: copy.name,
+                    working_dir: copy.working_dir,
+                    split: copy.split,
+                    split_from: copy.split_from,
+                    split_size: copy.split_size,
+                    clear: copy.clear,
+                    on_create: copy.on_create,
+                    post_create: copy.post_create,
+                    commands: copy.commands,
+                }
+            }
+        }
+
+        pub fn ser_panes<S>(panes: &Vec<CompactPane>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let mut seq = serializer.serialize_seq(Some(panes.len()))?;
+            for pane in panes {
+                if pane.commands.len() <= 1
+                    && is_default(&pane.name)
+                    && is_default(&pane.working_dir)
+                    && is_default(&pane.split)
+                    && is_default(&pane.split_from)
+                    && is_default(&pane.split_size)
+                    && is_default(&pane.clear)
+                    && is_default(&pane.on_create)
+                    && is_default(&pane.post_create)
+                {
+                    if pane.commands.is_empty() {
+                        seq.serialize_element("")?;
+                    } else {
+                        seq.serialize_element(&pane.commands[0])?;
+                    }
+                } else {
+                    seq.serialize_element(pane)?;
+                }
+            }
+            seq.end()
+        }
+
+        let project = CompactProject::from(self.to_owned());
+
+        Ok(if json {
+            serde_json::to_string_pretty(&project)?
+        } else {
+            serde_yaml::to_string(&project)?
         })
     }
 }

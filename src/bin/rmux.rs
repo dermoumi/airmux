@@ -27,6 +27,7 @@ fn main() -> Result<(), MainError> {
         ("edit", Some(sub_matches)) => command_edit(sub_matches),
         ("remove", Some(sub_matches)) => command_remove(sub_matches),
         ("list", Some(sub_matches)) => command_list(sub_matches),
+        ("freeze", Some(sub_matches)) => command_freeze(sub_matches),
         _ => panic!(),
     }
     .map_err(|x| x.into())
@@ -131,4 +132,27 @@ fn command_list(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     actions::list_projects(&config)
+}
+
+fn command_freeze(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
+    let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
+
+    let stdout = matches.is_present("stdout");
+    let project_name = matches.value_of_os("project_name");
+    let extension = matches.value_of_os("extension");
+    let no_input = matches.is_present("no_input");
+    let editor = matches.value_of_os("editor").unwrap();
+    let no_check = matches.is_present("no_check");
+    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+
+    actions::freeze_project(
+        &config,
+        stdout,
+        project_name.map(|s| s.to_os_string()),
+        extension.map(|s| s.to_os_string()),
+        editor,
+        no_input,
+        no_check,
+        args,
+    )
 }

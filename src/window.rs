@@ -65,7 +65,7 @@ impl Window {
             .collect::<Result<_, _>>()
     }
 
-    fn default_panes() -> Vec<Pane> {
+    pub fn default_panes() -> Vec<Pane> {
         vec![Pane::default()]
     }
 

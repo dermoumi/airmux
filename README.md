@@ -19,6 +19,7 @@ Just another tool that allows you to configure tmux sessions using YAML (or JSON
       - [Stop the session corresponding to a project](#stop-the-session-corresponding-to-a-project)
       - [Delete a project](#delete-a-project)
       - [Debug session creation](#debug-session-creation)
+      - [Save current session as a project](#save-current-session-as-a-project)
   - [Copyright](#copyright)
 
 ## Usage
@@ -37,6 +38,7 @@ OPTIONS:
 SUBCOMMANDS:
     debug     only print tmux command source without actually running tmux
     edit      Create or edit a project
+    freeze    Save current tmux session as a project file (commands not included)
     help      Prints this message or the help of the given subcommand(s)
     kill      Kill tmux session that matches the project
     list      List all configured projects
@@ -406,6 +408,20 @@ As long as the tmux server is already running. Also, it never attaches the sessi
 
 ```console
 $ rmux debug my_project | tmux source
+```
+
+#### Save current session as a project
+
+```console
+$ rmux freeze my_project
+```
+
+It will prompt you for confirmation before overriding an existing project, unless `--no-input` flag is passed.
+
+You can also print the project file to stdout instead of opening a text editor:
+
+```console
+$ rmux freeze --stdout
 ```
 
 ## Copyright

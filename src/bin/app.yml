@@ -4,6 +4,7 @@ settings:
   - VersionlessSubcommands
   - InferSubcommands
   - ColoredHelp
+
 args:
   - config_dir:
       global: true
@@ -12,12 +13,14 @@ args:
       long: config-dir
       value_name: DIR
       env: RMUX_CONFIG
+
 subcommands:
   - list:
       settings:
         - ColoredHelp
       about: List all configured projects
       alias: ls
+
   - start:
       settings:
         - ColoredHelp
@@ -56,6 +59,7 @@ subcommands:
             long: command
             value_name: COMMAND
             env: RMUX_COMMAND
+
   - debug:
       settings:
         - ColoredHelp
@@ -94,6 +98,7 @@ subcommands:
             long: command
             value_name: COMMAND
             env: RMUX_COMMAND
+
   - kill:
       settings:
         - ColoredHelp
@@ -114,6 +119,7 @@ subcommands:
             long: command
             value_name: COMMAND
             env: RMUX_COMMAND
+
   - edit:
       settings:
         - ColoredHelp
@@ -128,8 +134,13 @@ subcommands:
             help: the extension to use for the project file (yml|yaml|json)
             short: e
             long: ext
-            value_name: EXT
+            value_name: FILE_EXT
             default_value: yml
+            possible_values:
+              - yml
+              - yaml
+              - json
+            case_insensitive: true
         - editor:
             help: the editor to use
             short: E
@@ -152,6 +163,7 @@ subcommands:
             long: command
             value_name: COMMAND
             env: RMUX_COMMAND
+
   - remove:
       settings:
         - ColoredHelp
@@ -163,9 +175,65 @@ subcommands:
         - project_name:
             help: name of the project
             value_name: PROJECT_NAME
-            required: true
             index: 1
         - no_input:
-            help: do not prompt for input
+            help: do not prompt for confirmation
             short: "y"
             long: no-input
+
+  - freeze:
+      settings:
+        - ColoredHelp
+      about: Save current tmux session as a project file (commands not included)
+      args:
+        - stdout:
+            help: print the project file to stdout instead
+            short: s
+            long: stdout
+            conflicts_with:
+              - project_name
+              - editor
+              - no_input
+              - no_check
+              - args
+        - project_name:
+            help: name of the project
+            value_name: PROJECT_NAME
+            index: 1
+        - extension:
+            help: extension of the project file (also used to determine the format)
+            short: e
+            long: ext
+            value_name: FILE_EXT
+            default_value: yml
+            possible_values:
+              - yml
+              - yaml
+              - json
+            case_insensitive: true
+        - no_input:
+            help: do not prompt for confirmation
+            short: "y"
+            long: no-input
+        - editor:
+            help: the editor to use
+            short: E
+            long: editor
+            required_unless: stdout
+            value_name: EDITOR
+            env: EDITOR
+        - no_check:
+            help: do not check the project file
+            short: C
+            long: no-check
+        - args:
+            help: arguments to be passed as variables to the yaml file when checking
+            value_name: ARGUMENT
+            multiple: true
+        - tmux_command:
+            global: true
+            help: tmux command to use when checking
+            short: t
+            long: command
+            value_name: COMMAND
+            env: RMUX_COMMAND
