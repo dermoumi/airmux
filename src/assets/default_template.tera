@@ -95,7 +95,10 @@ if-shell {{ '! ' ~ cmd ~ ' list-windows -t ' ~ session_name ~ ' -F "##I" | grep 
     # Create window and rename it
     {%- set arg_working_dir = '' %}
     {%- set window_pane_count = window.panes | length %}
-    {%- if window_pane_count > 0 and window.panes[0].working_dir %}
+    {%- if window.working_dir %}
+        {%- set working_dir = window.working_dir | quote %}
+        {%- set arg_working_dir = ' -c ' ~ working_dir %}
+    {%- elif window_pane_count > 0 and window.panes[0].working_dir %}
         {%- set working_dir = window.panes[0].working_dir | quote %}
         {%- set arg_working_dir = ' -c ' ~ working_dir %}
     {%- elif project.working_dir %}

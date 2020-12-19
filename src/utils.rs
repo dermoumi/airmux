@@ -65,6 +65,10 @@ pub fn parse_command(
     Ok((new_command, new_args))
 }
 
+pub fn is_default<T: Default + PartialEq>(t: &T) -> bool {
+    t == &T::default()
+}
+
 #[cfg(test)]
 #[path = "test/utils.rs"]
 mod tests;

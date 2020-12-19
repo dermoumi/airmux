@@ -1,4 +1,4 @@
-use crate::utils;
+use crate::{pane::Pane, utils, window::Window};
 
 use crate::config::Config;
 use crate::project::Project;
@@ -41,6 +41,8 @@ pub enum Error {
     TmuxFailed { exit_code: i32 },
     #[snafu(display("unsupported file extension: {:?}", extension))]
     UnsupportedFileExtension { extension: OsString },
+    #[snafu(display("you should be in an active tmux session to run this command"))]
+    NoActiveTmuxSession,
 }
 
 pub fn start_project(
@@ -192,41 +194,18 @@ where
 
     let extension = extension.unwrap_or(OsString::from("yml"));
     edit::check_supported_extension(&extension)?;
-    let project_file = project_file.with_extension(extension);
+    let project_file = project_file.with_extension(&extension);
 
-    let editor = editor.as_ref();
-    ensure!(!editor.is_empty(), EditorEmpty {});
-
-    // Make sure the project's parent directory exists
-    if let Some(parent) = project_file.parent() {
-        mkdirp(parent)?;
-    }
-
-    // Make sure the project's yml file exists
-    ensure!(
-        !project_file.is_dir(),
-        ProjectFileIsADirectory { path: project_file }
-    );
-
-    if !project_file.exists() {
-        edit::create_project(&project_name, &project_file)?;
-    }
-
-    // Open it with editor
-    let editor = OsString::from(editor);
-    let (command, command_args) =
-        utils::parse_command(editor.as_os_str(), &[OsString::from(&project_file)])?;
-    let mut child = Command::new(command).args(command_args).spawn()?;
-
-    if !no_check {
-        child.wait()?;
-
-        // Perform a check on the project
-        let project = project::load(config, &project_name, &project_file, None, &args)?;
-        project.check()?;
-    }
-
-    Ok(())
+    edit::open_in_editor(
+        config,
+        project_name,
+        project_file,
+        extension,
+        editor,
+        None,
+        no_check,
+        args,
+    )
 }
 
 pub fn remove_project(
@@ -283,6 +262,65 @@ pub fn list_projects(config: &Config) -> Result<(), Box<dyn error::Error>> {
     );
 
     Ok(())
+}
+
+pub fn freeze_project<S>(
+    config: &Config,
+    stdout: bool,
+    project_name: Option<OsString>,
+    extension: Option<OsString>,
+    editor: S,
+    no_input: bool,
+    no_check: bool,
+    args: Vec<String>,
+) -> Result<(), Box<dyn error::Error>>
+where
+    S: AsRef<OsStr>,
+{
+    let as_json = match &extension {
+        Some(ext) if ext.to_string_lossy().to_lowercase() == "json" => true,
+        _ => false,
+    };
+
+    let project = freeze::get_project(config)?;
+    let content = project.serialize_compact(as_json)?;
+
+    if stdout {
+        println!("{}", content);
+        return Ok(());
+    }
+
+    let (project_name, project_file) = project::get_filename(config, project_name)?;
+
+    let extension = extension.unwrap_or(OsString::from("yml"));
+    edit::check_supported_extension(&extension)?;
+    let project_file = project_file.with_extension(&extension);
+
+    if project_file.exists()
+        && !no_input
+        && !Confirm::new()
+            .with_prompt(format!(
+                "Project {:?} already exists, are you sure you want to override it?",
+                project_name
+            ))
+            .default(false)
+            .show_default(true)
+            .interact()?
+    {
+        println!("Aborted.");
+        return Ok(());
+    }
+
+    edit::open_in_editor(
+        config,
+        project_name,
+        project_file,
+        extension,
+        editor,
+        Some(content),
+        no_check,
+        args,
+    )
 }
 
 mod project {
@@ -502,6 +540,7 @@ mod edit {
     pub fn create_project<S, P>(
         project_name: S,
         project_path: P,
+        content: Option<String>,
     ) -> Result<(), Box<dyn error::Error>>
     where
         S: AsRef<OsStr>,
@@ -509,12 +548,17 @@ mod edit {
     {
         let project_name = project_name.as_ref();
         let project_name = strip_extension_from_project_name(project_name);
-        let default_project_yml = include_str!("assets/default_project.yml")
-            .replace("__PROJECT_NAME__", &project_name.to_string_lossy());
 
         let project_path = project_path.as_ref();
         let mut file = fs::File::create(&project_path)?;
-        file.write_all(default_project_yml.as_bytes())?;
+
+        let content = match content {
+            Some(content) => content,
+            None => include_str!("assets/default_project.yml")
+                .replace("__PROJECT_NAME__", &project_name.to_string_lossy()),
+        };
+
+        file.write_all(content.as_bytes())?;
         file.sync_all()?;
 
         Ok(())
@@ -542,6 +586,54 @@ mod edit {
         P: AsRef<Path>,
     {
         OsString::from(project_name.as_ref().with_extension(""))
+    }
+
+    pub fn open_in_editor<S>(
+        config: &Config,
+        project_name: OsString,
+        project_file: PathBuf,
+        _extension: OsString,
+        editor: S,
+        content: Option<String>,
+        no_check: bool,
+        args: Vec<String>,
+    ) -> Result<(), Box<dyn error::Error>>
+    where
+        S: AsRef<OsStr>,
+    {
+        let editor = editor.as_ref();
+        ensure!(!editor.is_empty(), EditorEmpty {});
+
+        // Make sure the project's parent directory exists
+        if let Some(parent) = project_file.parent() {
+            mkdirp(parent)?;
+        }
+
+        // Make sure the project file exists
+        ensure!(
+            !project_file.is_dir(),
+            ProjectFileIsADirectory { path: project_file }
+        );
+
+        if !project_file.exists() || content.is_some() {
+            edit::create_project(&project_name, &project_file, content)?;
+        }
+
+        // Open it with editor
+        let editor = OsString::from(editor);
+        let (command, command_args) =
+            utils::parse_command(editor.as_os_str(), &[OsString::from(&project_file)])?;
+        let mut child = Command::new(command).args(command_args).spawn()?;
+
+        if !no_check {
+            child.wait()?;
+
+            // Perform a check on the project
+            let project = project::load(config, &project_name, &project_file, None, &args)?;
+            project.check()?;
+        }
+
+        Ok(())
     }
 }
 
@@ -591,6 +683,228 @@ mod list {
         }
 
         Ok(projects)
+    }
+}
+
+mod freeze {
+    use super::*;
+
+    pub fn get_project(config: &Config) -> Result<Project, Box<dyn error::Error>> {
+        let mut project = Project {
+            windows: vec![],
+            ..Project::default()
+        };
+
+        let session_id = freeze::get_tmux_value(config, "session_id", None)?;
+
+        project.session_name = Some(freeze::get_tmux_value(
+            config,
+            "session_name",
+            Some(session_id.as_str()),
+        )?);
+
+        let mut window_working_dir_map: HashMap<PathBuf, usize> = HashMap::new();
+        let mut window_most_used_working_dir = PathBuf::new();
+        let mut window_most_used_working_dir_count = 0;
+
+        let window_ids =
+            freeze::get_tmux_list_values(config, "list-windows", "window_id", session_id.as_str())?;
+        for window_id in &window_ids {
+            let mut window = Window {
+                panes: vec![],
+                ..Window::default()
+            };
+
+            let window_name =
+                freeze::get_tmux_value(config, "window_name", Some(window_id.as_str()))?;
+            let mut window_name = if window_name.is_empty() {
+                None
+            } else {
+                Some(window_name)
+            };
+
+            let mut pane_working_dir_map: HashMap<PathBuf, usize> = HashMap::new();
+            let mut pane_most_used_working_dir = PathBuf::new();
+            let mut pane_most_used_working_dir_count = 0;
+
+            let pane_ids =
+                freeze::get_tmux_list_values(config, "list-panes", "pane_id", window_id.as_str())?;
+            for pane_id in &pane_ids {
+                let mut pane = Pane { ..Pane::default() };
+
+                let pane_current_path = PathBuf::from(freeze::get_tmux_value(
+                    config,
+                    "pane_current_path",
+                    Some(pane_id.as_str()),
+                )?);
+                pane.working_dir = Some(pane_current_path.to_owned());
+
+                let pane_shell_path =
+                    freeze::get_tmux_value(config, "SHELL", Some(pane_id.as_str()))?;
+
+                let pane_shell = PathBuf::from(&pane_shell_path)
+                    .file_name()
+                    .map_or_else(|| String::new(), |s| s.to_string_lossy().to_string());
+
+                let pane_command_path =
+                    freeze::get_tmux_value(config, "pane_current_command", Some(pane_id.as_str()))?;
+
+                let pane_command = PathBuf::from(&pane_command_path)
+                    .file_name()
+                    .map_or_else(|| String::new(), |s| s.to_string_lossy().to_string());
+
+                let process_name = std::env::current_exe()?
+                    .file_name()
+                    .map_or(String::from("rmux"), |n| n.to_string_lossy().to_string());
+
+                if let Some(name) = &window_name {
+                    if name == &pane_command || name == &pane_shell || name == &process_name {
+                        window_name = None
+                    }
+                }
+
+                match pane_working_dir_map.get(&pane_current_path) {
+                    Some(count_value) => {
+                        let count_value = count_value + 1;
+                        pane_working_dir_map.insert(pane_current_path.to_owned(), count_value);
+
+                        if count_value > pane_most_used_working_dir_count {
+                            pane_most_used_working_dir = pane_current_path;
+                            pane_most_used_working_dir_count = count_value;
+                        }
+                    }
+                    None => {
+                        let count_value = 1;
+                        pane_working_dir_map.insert(pane_current_path.to_owned(), count_value);
+
+                        if count_value >= pane_most_used_working_dir_count {
+                            pane_most_used_working_dir = pane_current_path;
+                            pane_most_used_working_dir_count = count_value;
+                        }
+                    }
+                }
+
+                window.panes.push(pane);
+            }
+
+            // Set window name
+            window.name = window_name;
+
+            // Set working directory if any
+            if pane_most_used_working_dir_count > 0 {
+                window.working_dir = Some(pane_most_used_working_dir.to_owned());
+
+                for pane in &mut window.panes {
+                    if let Some(working_dir) = &pane.working_dir {
+                        if working_dir == &pane_most_used_working_dir {
+                            pane.working_dir = None;
+                        }
+                    }
+                }
+
+                match window_working_dir_map.get(&pane_most_used_working_dir) {
+                    Some(count_value) => {
+                        let count_value = count_value + 1;
+                        window_working_dir_map
+                            .insert(pane_most_used_working_dir.to_owned(), count_value);
+
+                        if count_value > window_most_used_working_dir_count {
+                            window_most_used_working_dir = pane_most_used_working_dir;
+                            window_most_used_working_dir_count = count_value;
+                        }
+                    }
+                    None => {
+                        let count_value = 1;
+                        window_working_dir_map
+                            .insert(pane_most_used_working_dir.to_owned(), count_value);
+
+                        if count_value >= window_most_used_working_dir_count {
+                            window_most_used_working_dir = pane_most_used_working_dir;
+                            window_most_used_working_dir_count = count_value;
+                        }
+                    }
+                }
+            }
+
+            // Set layout
+            let layout = freeze::get_tmux_value(config, "window_layout", Some(window_id.as_str()))?;
+            window.layout = Some(layout);
+
+            // Add window to project's window list
+            project.windows.push(window)
+        }
+
+        if window_most_used_working_dir_count > 0 {
+            project.working_dir = Some(window_most_used_working_dir.to_owned());
+
+            for window in &mut project.windows {
+                if let Some(working_dir) = &window.working_dir {
+                    if working_dir == &window_most_used_working_dir {
+                        window.working_dir = None;
+                    }
+                }
+            }
+        }
+
+        Ok(project)
+    }
+
+    pub fn get_tmux_value(
+        config: &Config,
+        value: &str,
+        target: Option<&str>,
+    ) -> Result<String, Box<dyn error::Error>> {
+        ensure!(std::option_env!("TMUX").is_some(), NoActiveTmuxSession);
+
+        let mut tmux_args = vec![OsString::from("display")];
+
+        if let Some(target) = target {
+            tmux_args.append(&mut vec![OsString::from("-t"), OsString::from(target)]);
+        }
+
+        tmux_args.append(&mut vec![
+            OsString::from("-p"),
+            OsString::from(format!("#{{{}}}", value)),
+        ]);
+
+        let (tmux, arguments) = config.get_tmux_command(tmux_args)?;
+
+        let value = String::from_utf8(Command::new(tmux).args(arguments).output()?.stdout)?
+            .trim()
+            .to_string();
+        Ok(value)
+    }
+
+    pub fn get_tmux_list_values(
+        config: &Config,
+        list_command: &str,
+        value: &str,
+        target: &str,
+    ) -> Result<Vec<String>, Box<dyn error::Error>> {
+        let tmux_args = vec![
+            OsString::from(list_command),
+            OsString::from("-t"),
+            OsString::from(target),
+            OsString::from("-F"),
+            OsString::from(format!("#{{{}}}", value)),
+        ];
+        let (tmux, arguments) = config.get_tmux_command(tmux_args)?;
+
+        let values =
+            String::from_utf8(Command::new(tmux).args(arguments).output()?.stdout)?.to_string();
+
+        let values = values
+            .split("\n")
+            .filter_map(|window_id| {
+                let window_id = window_id.trim();
+                if window_id.is_empty() {
+                    None
+                } else {
+                    Some(window_id.to_string())
+                }
+            })
+            .collect();
+        Ok(values)
     }
 }
 
