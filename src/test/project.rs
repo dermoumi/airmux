@@ -323,7 +323,6 @@ fn project_deserializes_correctly() {
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
         attach: false
-        template: tis but a scratch
         window: echo not_a_portal
     "#;
 
@@ -350,7 +349,6 @@ fn project_deserializes_correctly() {
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
             attach: false,
-            template: ProjectTemplate::Raw(String::from("tis but a scratch")),
             windows: vec![Window::from("echo not_a_portal")],
         }
     );
@@ -389,7 +387,6 @@ fn project_deserializer_accepts_empty_values() {
         post_pane_create:
         pane_command:
         attach:
-        template:
         window:
     "#;
 

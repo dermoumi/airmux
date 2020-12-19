@@ -2,7 +2,6 @@ use crate::{pane::Pane, utils, window::Window};
 
 use crate::config::Config;
 use crate::project::Project;
-use crate::project_template::ProjectTemplate;
 
 use dialoguer::Confirm;
 use mkdirp::mkdirp;
@@ -70,7 +69,7 @@ pub fn start_project(
 
     let template_content = match template_file {
         Some(template_file) => fs::read_to_string(template_file)?,
-        None => project::get_template(&project, project_file)?,
+        None => include_str!("assets/default_template.tera").to_string(),
     };
 
     let mut tera = Tera::default();
@@ -454,33 +453,6 @@ mod project {
 
         // If no file was found, fall back to the first extension in the list
         return Ok(path.with_extension(FILE_EXTENSIONS[0]));
-    }
-
-    pub fn get_template<P>(
-        project: &Project,
-        project_file: P,
-    ) -> Result<String, Box<dyn error::Error>>
-    where
-        P: AsRef<Path>,
-    {
-        let project_file = project_file.as_ref();
-
-        Ok(match &project.template {
-            ProjectTemplate::Raw(content) => content.to_owned(),
-            ProjectTemplate::File(filename) => {
-                let full_path = if filename.has_root() {
-                    filename.to_owned()
-                } else {
-                    let project_dir = project_file
-                        .parent()
-                        .map_or_else(|| PathBuf::new(), |p| PathBuf::from(p));
-                    PathBuf::from(project_dir.join(filename).canonicalize()?)
-                };
-
-                fs::read_to_string(full_path)?
-            }
-            ProjectTemplate::Default => include_str!("assets/default_template.tera").to_string(),
-        })
     }
 }
 

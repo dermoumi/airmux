@@ -2,7 +2,6 @@ use crate::command::de_command_list;
 use crate::config::Config;
 use crate::pane::Pane;
 use crate::panesplit::PaneSplit;
-use crate::project_template::ProjectTemplate;
 use crate::startup_window::StartupWindow;
 use crate::utils::{is_default, parse_command, valid_tmux_identifier};
 use crate::window::Window;
@@ -37,7 +36,6 @@ pub struct Project {
     pub post_pane_create: Vec<String>,
     pub pane_commands: Vec<String>,
     pub attach: bool,
-    pub template: ProjectTemplate,
     pub windows: Vec<Window>,
 }
 
@@ -284,8 +282,6 @@ impl Project {
             pub pane_commands: Vec<String>,
             #[serde(skip_serializing_if = "Project::is_default_attach")]
             pub attach: bool,
-            #[serde(skip_serializing_if = "is_default")]
-            pub template: ProjectTemplate,
             #[serde(skip_serializing_if = "is_default_windows")]
             pub windows: Vec<CompactWindow>,
         }
@@ -312,7 +308,6 @@ impl Project {
                     post_pane_create: copy.post_pane_create,
                     pane_commands: copy.pane_commands,
                     attach: copy.attach,
-                    template: copy.template,
                     windows: copy
                         .windows
                         .into_iter()
@@ -461,7 +456,6 @@ impl Default for Project {
             post_pane_create: vec![],
             pane_commands: vec![],
             attach: true,
-            template: ProjectTemplate::default(),
             windows: Self::default_windows(),
         }
     }
@@ -553,8 +547,6 @@ impl<'de> Deserialize<'de> for Project {
             attach: Option<bool>,
             #[serde(default, alias = "tmux_detached")]
             detached: Option<bool>,
-            #[serde(default)]
-            template: ProjectTemplate,
             #[serde(
                 default = "Project::default_windows",
                 alias = "window",
@@ -601,7 +593,6 @@ impl<'de> Deserialize<'de> for Project {
                     post_pane_create: project.post_pane_create,
                     pane_commands: project.pane_commands,
                     attach,
-                    template: project.template,
                     windows: project.windows,
                 }
             }
