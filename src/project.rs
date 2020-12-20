@@ -43,7 +43,7 @@ pub struct Project {
 impl Project {
     pub fn prepare(self, config: &Config, project_name: &str, force_attach: Option<bool>) -> Self {
         let mut project = Self {
-            session_name: self.session_name.or(Some(project_name.into())),
+            session_name: self.session_name.or_else(|| Some(project_name.to_string())),
             ..self
         };
 
@@ -78,10 +78,15 @@ impl Project {
                 }
             }
             StartupWindow::Name(name) => {
-                if let None = self.windows.iter().find(|window| match &window.name {
-                    Some(window_name) => window_name == name,
-                    _ => false,
-                }) {
+                if self
+                    .windows
+                    .iter()
+                    .find(|window| match &window.name {
+                        Some(window_name) => window_name == name,
+                        _ => false,
+                    })
+                    .is_none()
+                {
                     return Err(
                         format!("startup_window: there is no window with name {:?}", name).into(),
                     );
@@ -93,10 +98,11 @@ impl Project {
         // Make sure working_dir exists and is a directory
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
-                Err(format!(
+                return Err(format!(
                     "project working_dir {:?} is not a directory or does not exist",
                     path
-                ))?;
+                )
+                .into());
             }
         }
 
@@ -112,29 +118,29 @@ impl Project {
     // Also appends tmux_socket and tmux_options as arguments while at it
     pub fn tmux_command(
         &self,
-        args: Vec<OsString>,
+        mut args: Vec<OsString>,
     ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
         let command = OsString::from(self.tmux_command.as_ref().ok_or("tmux command not set")?);
 
         // Build tmux_socket arguments
         let socket_args = match &self.tmux_socket {
-            Some(tmux_socket) => vec![OsString::from("-L"), OsString::from(tmux_socket)],
             None => vec![],
+            Some(tmux_socket) => vec![OsString::from("-L"), OsString::from(tmux_socket)],
         };
 
         // Convert tmux_options ot OsString
         let mut extra_args = match &self.tmux_options {
+            None => vec![],
             Some(tmux_options) => split(&tmux_options)?
                 .into_iter()
                 .map(OsString::from)
                 .collect(),
-            None => vec![],
         };
 
         // Append all args together
         let mut full_args = socket_args;
         full_args.append(&mut extra_args);
-        full_args.append(&mut args.to_owned());
+        full_args.append(&mut args);
 
         // Use utiliy to split command and append args to the split arguments
         parse_command(&command, &full_args)

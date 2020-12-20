@@ -20,7 +20,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-const FILE_EXTENSIONS: &'static [&'static str] = &["yml", "yaml", "json"];
+const FILE_EXTENSIONS: &[&str] = &["yml", "yaml", "json"];
 
 #[derive(Debug, Snafu)]
 pub enum Error {
@@ -265,10 +265,7 @@ pub fn freeze_project<S>(
 where
     S: AsRef<OsStr>,
 {
-    let as_json = match &extension {
-        Some(ext) if ext.to_string_lossy().to_lowercase() == "json" => true,
-        _ => false,
-    };
+    let as_json = matches!(&extension, Some(ext) if ext.to_string_lossy().to_lowercase() == "json");
 
     let project = freeze::get_project(config)?;
     let content = project.serialize_compact(as_json)?;
@@ -436,7 +433,7 @@ mod project {
         }
 
         // If no file was found, fall back to the first extension in the list
-        return Ok(path.with_extension(FILE_EXTENSIONS[0]));
+        Ok(path.with_extension(FILE_EXTENSIONS[0]))
     }
 }
 
@@ -462,7 +459,7 @@ mod source {
                 "1",
             ]),
             // on_start commands
-            if project.on_start.len() > 0 {
+            if !project.on_start.is_empty() {
                 join(vec![
                     "run-shell",
                     project
@@ -495,7 +492,7 @@ mod source {
                         format!("{}:999999", session_name).as_str(),
                     ]),
                     // on_first_start commands
-                    if project.on_first_start.len() > 0 {
+                    if !project.on_first_start.is_empty() {
                         join(vec![
                             "run-shell",
                             project
@@ -509,7 +506,7 @@ mod source {
                         String::new()
                     },
                     // on_exit commands
-                    if project.on_exit.len() > 0 {
+                    if !project.on_exit.is_empty() {
                         join(vec![
                             "set-hook",
                             "-t",
@@ -532,7 +529,7 @@ mod source {
                         String::new()
                     },
                     // on_stop (+on_exit) commands
-                    if project.on_exit.len() > 0 || project.on_stop.len() > 0 {
+                    if !project.on_exit.is_empty() || !project.on_stop.is_empty() {
                         let mut command_list = project
                             .on_exit
                             .to_owned()
@@ -592,7 +589,7 @@ mod source {
                 .as_str(),
             ]),
             // on_restart commands
-            if project.on_restart.len() > 0 {
+            if !project.on_restart.is_empty() {
                 join(vec![
                     "if-shell",
                     "-F",
@@ -642,7 +639,7 @@ mod source {
                         let mut found_working_dir = false;
                         let mut working_dir = String::new();
 
-                        if window.panes.len() > 0 {
+                        if !window.panes.is_empty() {
                             if let Some(wd) = &window.panes[0].working_dir {
                                 working_dir = wd.to_string_lossy().to_string();
                                 found_working_dir = true;
@@ -685,7 +682,7 @@ mod source {
                                 String::new()
                             },
                             // Window on_create commands
-                            if window.on_create.len() > 0 {
+                            if !window.on_create.is_empty() {
                                 join(vec![
                                     "run-shell",
                                     window
@@ -945,7 +942,7 @@ mod source {
                                 format!("{}.{}", target_window, project.pane_base_index).as_str(),
                             ]),
                             // window post_create commands
-                            if window.post_create.len() > 0 {
+                            if !window.post_create.is_empty() {
                                 join(vec![
                                     "run-shell",
                                     window
@@ -1022,7 +1019,7 @@ mod source {
                 .as_str(),
             ]),
             // post_create commands
-            if project.post_create.len() > 0 {
+            if !project.post_create.is_empty() {
                 join(vec![
                     "run-shell",
                     project
@@ -1236,7 +1233,7 @@ mod list {
             if entry_path.is_file() {
                 // Ignore file if it doesn't have a supported file extension
                 if let Some(extension) = entry_path.extension() {
-                    if let Ok(_) = edit::check_supported_extension(extension) {
+                    if edit::check_supported_extension(extension).is_ok() {
                         let file_path = entry_path.strip_prefix(path)?;
                         projects.push(OsString::from(file_path.with_extension("")));
                     }
@@ -1326,14 +1323,14 @@ mod freeze {
 
                 let pane_shell = PathBuf::from(&pane_shell_path)
                     .file_name()
-                    .map_or_else(|| String::new(), |s| s.to_string_lossy().to_string());
+                    .map_or_else(String::new, |s| s.to_string_lossy().to_string());
 
                 let pane_command_path =
                     freeze::get_tmux_value(config, "pane_current_command", Some(pane_id.as_str()))?;
 
                 let pane_command = PathBuf::from(&pane_command_path)
                     .file_name()
-                    .map_or_else(|| String::new(), |s| s.to_string_lossy().to_string());
+                    .map_or_else(String::new, |s| s.to_string_lossy().to_string());
 
                 let process_name = env::current_exe()?
                     .file_name()
@@ -1472,11 +1469,9 @@ mod freeze {
         ];
         let (tmux, arguments) = config.get_tmux_command(tmux_args)?;
 
-        let values =
-            String::from_utf8(Command::new(tmux).args(arguments).output()?.stdout)?.to_string();
-
+        let values = String::from_utf8(Command::new(tmux).args(arguments).output()?.stdout)?;
         let values = values
-            .split("\n")
+            .split('\n')
             .filter_map(|window_id| {
                 let window_id = window_id.trim();
                 if window_id.is_empty() {
@@ -1486,6 +1481,7 @@ mod freeze {
                 }
             })
             .collect();
+
         Ok(values)
     }
 }
