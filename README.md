@@ -207,6 +207,8 @@ on_stop:
 Note: Rmux will always remove `\r` characters and replace `\n` with a space character (` `),
 even if you don't use the correct yaml multiline syntax.
 
+All commands are executed regardless of the exit status of the previous command.
+
 #### Window definition
 
 All the fields are optional, but at least one is required.
@@ -225,11 +227,11 @@ windows:
       # Or a custom layout, see `Layouts` section for details. Can't use with custom pane splits.
       layout: <no_layout>
 
-      # Shell commands to execute when a window is created (before pane_commands are typed in)
+      # Shell commands to execute when a window is created (before child pane panes are configured)
       # Available substitutions: __TMUX__, __SESSION__, __WINDOW__
       on_create:
 
-      # Shell commands to execute after a window is created (before pane_commands are typed in)
+      # Shell commands to execute after a window is created (after all child panes are configured)
       # Available substitutions: __TMUX__, __SESSION__, __WINDOW__
       post_create:
 
@@ -293,7 +295,7 @@ panes:
     working_dir: <window's working directory>
 
     # The pane to split from when creating this one. Does not apply to the first pane.
-    # These indexes always start at 0 (per window), and follow the same order as in the project file
+    # These indexes follow the same order as in the project file and always start with pane_base_index
     split_from: <previous pane>
 
     # How to split when creating this pane (v, vertical, h, horizontal)

@@ -2,7 +2,7 @@ pub mod actions;
 pub mod command;
 pub mod config;
 pub mod pane;
-pub mod panesplit;
+pub mod pane_split;
 pub mod project;
 pub mod startup_window;
 pub mod utils;

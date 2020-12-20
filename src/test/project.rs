@@ -258,7 +258,7 @@ fn project_get_tmux_command_splits_command_and_appends_options() {
     };
 
     let (command, args) = project
-        .get_tmux_command(vec![OsString::from("-o3"), OsString::from("option3")])
+        .tmux_command(vec![OsString::from("-o3"), OsString::from("option3")])
         .unwrap();
 
     assert_eq!(command, "tmux");
@@ -286,7 +286,7 @@ fn project_get_tmux_command_for_template_returns_joined_quoted_params() {
         ..Project::default()
     };
 
-    let command = project.get_tmux_command_for_template().unwrap();
+    let command = project.tmux(Vec::<&str>::new()).unwrap();
     assert_eq!(command, "tmux -o1 'op tion1' -L socket -o2 option2");
 }
 
@@ -297,7 +297,7 @@ fn project_get_tmux_command_for_template_returns_single_command() {
         ..Project::default()
     };
 
-    let command = project.get_tmux_command_for_template().unwrap();
+    let command = project.tmux(Vec::<&str>::new()).unwrap();
     assert_eq!(command, "tmux");
 }
 

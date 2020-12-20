@@ -1,7 +1,7 @@
 use crate::command::de_command_list;
 use crate::config::Config;
 use crate::pane::Pane;
-use crate::panesplit::PaneSplit;
+use crate::pane_split::PaneSplit;
 use crate::startup_window::StartupWindow;
 use crate::utils::{is_default, parse_command, valid_tmux_identifier};
 use crate::window::Window;
@@ -9,10 +9,11 @@ use crate::working_dir::{de_working_dir, ser_working_dir};
 
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{de, Deserialize, Serialize};
-use shell_words::{quote, split};
+use shell_words::{join, split};
 
 use std::error::Error;
 use std::ffi::OsString;
+use std::iter;
 use std::path::PathBuf;
 
 #[derive(Serialize, Debug, PartialEq, Clone)]
@@ -109,14 +110,14 @@ impl Project {
         // Run checks for each window
         self.windows
             .iter()
-            .map(|w| w.check())
+            .map(|w| w.check(self.pane_base_index))
             .collect::<Result<_, _>>()
     }
 
     // Separates tmux_command into the command itself + an array of arguments
     // The arguments are then merged with the passed arguments
     // Also appends tmux_socket and tmux_options as arguments while at it
-    pub fn get_tmux_command(
+    pub fn tmux_command(
         &self,
         args: Vec<OsString>,
     ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
@@ -147,17 +148,21 @@ impl Project {
     }
 
     // Sanitizes tmux_command for use in the template file
-    pub fn get_tmux_command_for_template(&self) -> Result<String, Box<dyn Error>> {
-        let (command, args) = self.get_tmux_command(vec![])?;
+    pub fn tmux<I, S>(&self, args: I) -> Result<String, Box<dyn Error>>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let (command, args) = self.tmux_command(
+            args.into_iter()
+                .map(|x| OsString::from(x.as_ref()))
+                .collect::<Vec<OsString>>(),
+        )?;
 
-        Ok(vec![command.to_string_lossy().into()]
-            .into_iter()
-            .chain(
-                args.into_iter()
-                    .map(|s| quote(&String::from(s.to_string_lossy())).into()),
-            )
-            .collect::<Vec<String>>()
-            .join(" "))
+        Ok(join(
+            iter::once(String::from(command.to_string_lossy()))
+                .chain(args.into_iter().map(|s| String::from(s.to_string_lossy()))),
+        ))
     }
 
     fn default_window_base_index() -> usize {
