@@ -418,7 +418,7 @@ impl Project {
                     && is_default(&pane.post_create)
                 {
                     if pane.commands.is_empty() {
-                        seq.serialize_element("")?;
+                        seq.serialize_element(&None as &Option<&str>)?;
                     } else {
                         seq.serialize_element(&pane.commands[0])?;
                     }

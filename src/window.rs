@@ -251,9 +251,9 @@ impl<'de> Visitor<'de> for WindowVisitor {
             None,
             String(String),
             CommandList(Vec<String>),
+            PaneList(Vec<Pane>),
             Definition(WindowDef),
             DefinitionWithName(WindowDefWithName),
-            PaneList(Vec<Pane>),
         }
 
         let mut first_entry = true;
