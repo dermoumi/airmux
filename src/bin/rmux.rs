@@ -6,11 +6,12 @@ use clap::{crate_description, crate_name, crate_version, load_yaml, App, ArgMatc
 use main_error::MainError;
 
 use std::error::Error;
+use std::ffi::OsString;
 
-pub const APP_NAME: &'static str = crate_name!();
-pub const APP_AUTHOR: &'static str = "rmux";
-pub const APP_VERSION: &'static str = crate_version!();
-pub const APP_DESCRIPTION: &'static str = crate_description!();
+pub const APP_NAME: &str = crate_name!();
+pub const APP_AUTHOR: &str = "rmux";
+pub const APP_VERSION: &str = crate_version!();
+pub const APP_DESCRIPTION: &str = crate_description!();
 
 fn main() -> Result<(), MainError> {
     let arg_config = load_yaml!("app.yml");
@@ -40,7 +41,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let verbose = matches.is_present("verbose");
-    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+    let args = matches.values_of_lossy("args").unwrap_or_default();
 
     let force_attach = if attach {
         Some(true)
@@ -52,7 +53,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
 
     actions::start_project(
         &config,
-        project_name.map(|s| s.to_os_string()),
+        project_name.map(OsString::from),
         force_attach,
         false,
         verbose,
@@ -67,7 +68,7 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let verbose = matches.is_present("verbose");
-    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+    let args = matches.values_of_lossy("args").unwrap_or_default();
 
     let force_attach = if attach {
         Some(true)
@@ -79,7 +80,7 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
 
     actions::start_project(
         &config,
-        project_name.map(|s| s.to_os_string()),
+        project_name.map(OsString::from),
         force_attach,
         true,
         verbose,
@@ -91,9 +92,9 @@ fn command_kill(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_os("project_name");
-    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+    let args = matches.values_of_lossy("args").unwrap_or_default();
 
-    actions::kill_project(&config, project_name.map(|s| s.to_os_string()), args)
+    actions::kill_project(&config, project_name.map(OsString::from), args)
 }
 
 fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
@@ -103,12 +104,12 @@ fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let extension = matches.value_of_os("extension");
     let editor = matches.value_of_os("editor").unwrap();
     let no_check = matches.is_present("no_check");
-    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+    let args = matches.values_of_lossy("args").unwrap_or_default();
 
     actions::edit_project(
         &config,
-        project_name.map(|s| s.to_os_string()),
-        extension.map(|s| s.to_os_string()),
+        project_name.map(OsString::from),
+        extension.map(OsString::from),
         editor,
         no_check,
         args,
@@ -121,7 +122,7 @@ fn command_remove(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let project_name = matches.value_of_os("project_name");
     let no_input = matches.is_present("no_input");
 
-    actions::remove_project(&config, project_name.map(|s| s.to_os_string()), no_input)
+    actions::remove_project(&config, project_name.map(OsString::from), no_input)
 }
 
 fn command_list(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
@@ -139,13 +140,13 @@ fn command_freeze(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let no_input = matches.is_present("no_input");
     let editor = matches.value_of_os("editor").unwrap();
     let no_check = matches.is_present("no_check");
-    let args = matches.values_of_lossy("args").unwrap_or(vec![]);
+    let args = matches.values_of_lossy("args").unwrap_or_default();
 
     actions::freeze_project(
         &config,
         stdout,
-        project_name.map(|s| s.to_os_string()),
-        extension.map(|s| s.to_os_string()),
+        project_name.map(OsString::from),
+        extension.map(OsString::from),
         editor,
         no_input,
         no_check,

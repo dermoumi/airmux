@@ -72,26 +72,19 @@ impl Project {
                 if *index >= self.window_base_index + self.windows.len()
                     || *index < self.window_base_index
                 {
-                    Err(format!(
-                        "startup_window: there is no window with index {}",
-                        index
-                    ))?;
+                    return Err(
+                        format!("startup_window: there is no window with index {}", index).into(),
+                    );
                 }
             }
             StartupWindow::Name(name) => {
-                if self
-                    .windows
-                    .iter()
-                    .find(|w| match &w.name {
-                        Some(window_name) => window_name == name,
-                        _ => false,
-                    })
-                    .is_none()
-                {
-                    Err(format!(
-                        "startup_window: there is no window with name {:?}",
-                        name
-                    ))?;
+                if let None = self.windows.iter().find(|window| match &window.name {
+                    Some(window_name) => window_name == name,
+                    _ => false,
+                }) {
+                    return Err(
+                        format!("startup_window: there is no window with name {:?}", name).into(),
+                    );
                 }
             }
             _ => {}
@@ -124,16 +117,16 @@ impl Project {
         let command = OsString::from(self.tmux_command.as_ref().ok_or("tmux command not set")?);
 
         // Build tmux_socket arguments
-        let socket_args: Vec<OsString> = match &self.tmux_socket {
+        let socket_args = match &self.tmux_socket {
             Some(tmux_socket) => vec![OsString::from("-L"), OsString::from(tmux_socket)],
             None => vec![],
         };
 
         // Convert tmux_options ot OsString
-        let mut extra_args: Vec<OsString> = match &self.tmux_options {
+        let mut extra_args = match &self.tmux_options {
             Some(tmux_options) => split(&tmux_options)?
                 .into_iter()
-                .map(|o| OsString::from(o))
+                .map(OsString::from)
                 .collect(),
             None => vec![],
         };
@@ -198,7 +191,7 @@ impl Project {
         D: de::Deserializer<'de>,
     {
         let opt: Option<usize> = de::Deserialize::deserialize(deserializer)?;
-        Ok(opt.unwrap_or(Self::default_window_base_index()))
+        Ok(opt.unwrap_or_else(Self::default_window_base_index))
     }
 
     fn de_pane_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
@@ -206,7 +199,7 @@ impl Project {
         D: de::Deserializer<'de>,
     {
         let opt: Option<usize> = de::Deserialize::deserialize(deserializer)?;
-        Ok(opt.unwrap_or(Self::default_pane_base_index()))
+        Ok(opt.unwrap_or_else(Self::default_pane_base_index))
     }
 
     fn de_windows<'de, D>(deserializer: D) -> Result<Vec<Window>, D::Error>
@@ -231,23 +224,21 @@ impl Project {
     }
 
     pub fn serialize_compact(&self, json: bool) -> Result<String, Box<dyn Error>> {
-        fn is_default_windows(windows: &Vec<CompactWindow>) -> bool {
-            &Project::default_windows()
+        fn is_default_windows(windows: &[CompactWindow]) -> bool {
+            Project::default_windows()
                 .into_iter()
-                .map(|w| CompactWindow::from(w))
-                .collect::<Vec<CompactWindow>>()
-                == windows
+                .map(CompactWindow::from)
+                .eq(windows.to_owned())
         }
 
-        pub fn is_default_panes(panes: &Vec<CompactPane>) -> bool {
-            &Window::default_panes()
+        pub fn is_default_panes(panes: &[CompactPane]) -> bool {
+            Window::default_panes()
                 .into_iter()
-                .map(|p| CompactPane::from(p))
-                .collect::<Vec<CompactPane>>()
-                == panes
+                .map(CompactPane::from)
+                .eq(panes.to_owned())
         }
 
-        #[derive(Serialize, PartialEq)]
+        #[derive(Serialize, PartialEq, Clone)]
         pub struct CompactProject {
             #[serde(skip_serializing_if = "is_default")]
             pub session_name: Option<String>,
@@ -313,16 +304,12 @@ impl Project {
                     post_pane_create: copy.post_pane_create,
                     pane_commands: copy.pane_commands,
                     attach: copy.attach,
-                    windows: copy
-                        .windows
-                        .into_iter()
-                        .map(|w| CompactWindow::from(w))
-                        .collect(),
+                    windows: copy.windows.into_iter().map(CompactWindow::from).collect(),
                 }
             }
         }
 
-        #[derive(Serialize, PartialEq)]
+        #[derive(Serialize, PartialEq, Clone)]
         pub struct CompactWindow {
             pub name: Option<String>,
             #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
@@ -354,16 +341,12 @@ impl Project {
                     on_pane_create: copy.on_pane_create,
                     post_pane_create: copy.post_pane_create,
                     pane_commands: copy.pane_commands,
-                    panes: copy
-                        .panes
-                        .into_iter()
-                        .map(|p| CompactPane::from(p))
-                        .collect(),
+                    panes: copy.panes.into_iter().map(CompactPane::from).collect(),
                 }
             }
         }
 
-        #[derive(Serialize, PartialEq)]
+        #[derive(Serialize, PartialEq, Clone)]
         pub struct CompactPane {
             #[serde(skip_serializing_if = "is_default")]
             pub name: Option<String>,
@@ -401,7 +384,7 @@ impl Project {
             }
         }
 
-        pub fn ser_panes<S>(panes: &Vec<CompactPane>, serializer: S) -> Result<S::Ok, S::Error>
+        pub fn ser_panes<S>(panes: &[CompactPane], serializer: S) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
         {
@@ -567,10 +550,12 @@ impl<'de> Deserialize<'de> for Project {
             Some(project) => {
                 let attach = match project.attach {
                     Some(attach) => match project.detached {
-                        Some(_) => Err(de::Error::custom(
-                            "cannot set both 'attach' and 'detached' fields",
-                        ))?,
                         None => attach,
+                        Some(_) => {
+                            return Err(de::Error::custom(
+                                "cannot set both 'attach' and 'detached' fields",
+                            ))
+                        }
                     },
                     None => match project.detached {
                         Some(detached) => !detached,

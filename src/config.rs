@@ -34,8 +34,8 @@ impl Config {
         app_author: &'static str,
         matches: &ArgMatches,
     ) -> Config {
-        let tmux_command = matches.value_of_os("tmux_command").map(|x| x.into());
-        let config_dir = matches.value_of_os("config_dir").map(|x| x.into());
+        let tmux_command = matches.value_of_os("tmux_command").map(OsString::from);
+        let config_dir = matches.value_of_os("config_dir").map(PathBuf::from);
 
         Config {
             app_name,

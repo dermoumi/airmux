@@ -57,8 +57,8 @@ pub fn parse_command(
 
     let mut command_parts = split(&command.to_string_lossy())?
         .into_iter()
-        .map(|x| x.into())
-        .chain(args.into_iter().map(|x| x.into()));
+        .map(OsString::from)
+        .chain(args.iter().map(OsString::from));
 
     let new_command = command_parts.next().unwrap();
     let new_args: Vec<OsString> = command_parts.collect();

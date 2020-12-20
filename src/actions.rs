@@ -108,13 +108,13 @@ pub fn start_project(
         // Attach
         if project.attach {
             let session_name = project.session_name.as_ref().unwrap();
-            let (tmux_command, tmux_args) = match option_env!("TMUX") {
-                Some(_) => project.tmux_command(vec![
+            let (tmux_command, tmux_args) = match env::var("TMUX") {
+                Ok(_) => project.tmux_command(vec![
                     OsString::from("switch-client"),
                     OsString::from("-t"),
                     OsString::from(session_name),
                 ])?,
-                None => project.tmux_command(vec![
+                Err(_) => project.tmux_command(vec![
                     OsString::from("attach-session"),
                     OsString::from("-t"),
                     OsString::from(session_name),
@@ -244,7 +244,7 @@ pub fn list_projects(config: &Config) -> Result<(), Box<dyn error::Error>> {
         "{}",
         projects
             .into_iter()
-            .map(|entry| entry.to_string_lossy().into())
+            .map(|entry| entry.to_string_lossy().to_string())
             .collect::<Vec<String>>()
             .join("\n")
     );
@@ -339,7 +339,7 @@ mod project {
             }
             None => {
                 // Try to find a local project file in current directory and all ancestors
-                let mut project_dir = std::env::current_dir()?;
+                let mut project_dir = env::current_dir()?;
                 loop {
                     let project_file = project_dir.join(PathBuf::from(".rmux"));
 
@@ -362,7 +362,7 @@ mod project {
                 }
 
                 // Fall back to local project file
-                let project_dir = std::env::current_dir()?;
+                let project_dir = env::current_dir()?;
                 let project_file = project_dir.join(".rmux.yml");
                 let project_name = match project_dir.file_name() {
                     Some(name) => {
@@ -1335,7 +1335,7 @@ mod freeze {
                     .file_name()
                     .map_or_else(|| String::new(), |s| s.to_string_lossy().to_string());
 
-                let process_name = std::env::current_exe()?
+                let process_name = env::current_exe()?
                     .file_name()
                     .map_or(String::from("rmux"), |n| n.to_string_lossy().to_string());
 
@@ -1436,7 +1436,7 @@ mod freeze {
         value: &str,
         target: Option<&str>,
     ) -> Result<String, Box<dyn error::Error>> {
-        ensure!(std::option_env!("TMUX").is_some(), NoActiveTmuxSession);
+        ensure!(env::var("TMUX").is_ok(), NoActiveTmuxSession);
 
         let mut tmux_args = vec![OsString::from("display")];
 
