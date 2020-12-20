@@ -24,7 +24,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn check(&self) -> Result<(), Box<dyn Error>> {
+    pub fn check(&self, base_pane_index: usize) -> Result<(), Box<dyn Error>> {
         // Make sure the window's name is valid
         if let Some(name) = &self.name {
             valid_tmux_identifier(name)?;
@@ -39,9 +39,10 @@ impl Window {
             }
 
             if let Some(split_from) = pane.split_from {
-                if split_from >= self.panes.len() {
+                if split_from < base_pane_index || split_from >= base_pane_index + self.panes.len()
+                {
                     Err(format!(
-                        "split_from: there is no pane with index {} (pane indexes always start at 0)",
+                        "split_from: there is no pane with index {} (pane indexes always start at pane_base_index)",
                         split_from
                     ))?;
                 }

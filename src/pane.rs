@@ -1,5 +1,5 @@
 use crate::command::{de_command_list, process_command, process_command_list};
-use crate::panesplit::PaneSplit;
+use crate::pane_split::PaneSplit;
 use crate::working_dir::{de_working_dir, home_working_dir, process_working_dir};
 
 use de::Visitor;

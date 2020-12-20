@@ -258,7 +258,7 @@ fn project_get_tmux_command_splits_command_and_appends_options() {
     };
 
     let (command, args) = project
-        .get_tmux_command(vec![OsString::from("-o3"), OsString::from("option3")])
+        .tmux_command(vec![OsString::from("-o3"), OsString::from("option3")])
         .unwrap();
 
     assert_eq!(command, "tmux");
@@ -286,7 +286,7 @@ fn project_get_tmux_command_for_template_returns_joined_quoted_params() {
         ..Project::default()
     };
 
-    let command = project.get_tmux_command_for_template().unwrap();
+    let command = project.tmux(Vec::<&str>::new()).unwrap();
     assert_eq!(command, "tmux -o1 'op tion1' -L socket -o2 option2");
 }
 
@@ -297,7 +297,7 @@ fn project_get_tmux_command_for_template_returns_single_command() {
         ..Project::default()
     };
 
-    let command = project.get_tmux_command_for_template().unwrap();
+    let command = project.tmux(Vec::<&str>::new()).unwrap();
     assert_eq!(command, "tmux");
 }
 
@@ -323,7 +323,6 @@ fn project_deserializes_correctly() {
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
         attach: false
-        template: tis but a scratch
         window: echo not_a_portal
     "#;
 
@@ -350,7 +349,6 @@ fn project_deserializes_correctly() {
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
             attach: false,
-            template: ProjectTemplate::Raw(String::from("tis but a scratch")),
             windows: vec![Window::from("echo not_a_portal")],
         }
     );
@@ -389,7 +387,6 @@ fn project_deserializer_accepts_empty_values() {
         post_pane_create:
         pane_command:
         attach:
-        template:
         window:
     "#;
 

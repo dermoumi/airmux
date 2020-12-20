@@ -1,8 +1,7 @@
 use crate::command::de_command_list;
 use crate::config::Config;
 use crate::pane::Pane;
-use crate::panesplit::PaneSplit;
-use crate::project_template::ProjectTemplate;
+use crate::pane_split::PaneSplit;
 use crate::startup_window::StartupWindow;
 use crate::utils::{is_default, parse_command, valid_tmux_identifier};
 use crate::window::Window;
@@ -10,10 +9,11 @@ use crate::working_dir::{de_working_dir, ser_working_dir};
 
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{de, Deserialize, Serialize};
-use shell_words::{quote, split};
+use shell_words::{join, split};
 
 use std::error::Error;
 use std::ffi::OsString;
+use std::iter;
 use std::path::PathBuf;
 
 #[derive(Serialize, Debug, PartialEq, Clone)]
@@ -37,7 +37,6 @@ pub struct Project {
     pub post_pane_create: Vec<String>,
     pub pane_commands: Vec<String>,
     pub attach: bool,
-    pub template: ProjectTemplate,
     pub windows: Vec<Window>,
 }
 
@@ -111,14 +110,14 @@ impl Project {
         // Run checks for each window
         self.windows
             .iter()
-            .map(|w| w.check())
+            .map(|w| w.check(self.pane_base_index))
             .collect::<Result<_, _>>()
     }
 
     // Separates tmux_command into the command itself + an array of arguments
     // The arguments are then merged with the passed arguments
     // Also appends tmux_socket and tmux_options as arguments while at it
-    pub fn get_tmux_command(
+    pub fn tmux_command(
         &self,
         args: Vec<OsString>,
     ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
@@ -149,17 +148,21 @@ impl Project {
     }
 
     // Sanitizes tmux_command for use in the template file
-    pub fn get_tmux_command_for_template(&self) -> Result<String, Box<dyn Error>> {
-        let (command, args) = self.get_tmux_command(vec![])?;
+    pub fn tmux<I, S>(&self, args: I) -> Result<String, Box<dyn Error>>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let (command, args) = self.tmux_command(
+            args.into_iter()
+                .map(|x| OsString::from(x.as_ref()))
+                .collect::<Vec<OsString>>(),
+        )?;
 
-        Ok(vec![command.to_string_lossy().into()]
-            .into_iter()
-            .chain(
-                args.into_iter()
-                    .map(|s| quote(&String::from(s.to_string_lossy())).into()),
-            )
-            .collect::<Vec<String>>()
-            .join(" "))
+        Ok(join(
+            iter::once(String::from(command.to_string_lossy()))
+                .chain(args.into_iter().map(|s| String::from(s.to_string_lossy()))),
+        ))
     }
 
     fn default_window_base_index() -> usize {
@@ -284,8 +287,6 @@ impl Project {
             pub pane_commands: Vec<String>,
             #[serde(skip_serializing_if = "Project::is_default_attach")]
             pub attach: bool,
-            #[serde(skip_serializing_if = "is_default")]
-            pub template: ProjectTemplate,
             #[serde(skip_serializing_if = "is_default_windows")]
             pub windows: Vec<CompactWindow>,
         }
@@ -312,7 +313,6 @@ impl Project {
                     post_pane_create: copy.post_pane_create,
                     pane_commands: copy.pane_commands,
                     attach: copy.attach,
-                    template: copy.template,
                     windows: copy
                         .windows
                         .into_iter()
@@ -461,7 +461,6 @@ impl Default for Project {
             post_pane_create: vec![],
             pane_commands: vec![],
             attach: true,
-            template: ProjectTemplate::default(),
             windows: Self::default_windows(),
         }
     }
@@ -553,8 +552,6 @@ impl<'de> Deserialize<'de> for Project {
             attach: Option<bool>,
             #[serde(default, alias = "tmux_detached")]
             detached: Option<bool>,
-            #[serde(default)]
-            template: ProjectTemplate,
             #[serde(
                 default = "Project::default_windows",
                 alias = "window",
@@ -601,7 +598,6 @@ impl<'de> Deserialize<'de> for Project {
                     post_pane_create: project.post_pane_create,
                     pane_commands: project.pane_commands,
                     attach,
-                    template: project.template,
                     windows: project.windows,
                 }
             }

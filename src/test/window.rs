@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::panesplit::PaneSplit;
+use crate::pane_split::PaneSplit;
 use tempfile::tempdir;
 
 use std::fs;
@@ -12,7 +12,7 @@ fn window_check_succeeds_on_valid_window() {
         ..Window::default()
     };
 
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_ok());
 }
 
@@ -23,7 +23,7 @@ fn window_check_fails_on_invalid_name() {
         ..Window::default()
     };
 
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
@@ -35,7 +35,7 @@ fn window_check_fails_on_invalid_name() {
         ..Window::default()
     };
 
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
@@ -54,11 +54,11 @@ fn window_check_fails_when_pane_split_from_is_out_of_bounds() {
     };
     assert_eq!(window.panes.len(), 1);
 
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
-        "split_from: there is no pane with index 2 (pane indexes always start at 0)"
+        "split_from: there is no pane with index 2 (pane indexes always start at pane_base_index)"
     )
 }
 
@@ -71,7 +71,7 @@ fn window_check_succeeds_when_working_dir_is_a_existing_dir() {
         working_dir: Some(temp_dir),
         ..Window::default()
     };
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_ok());
 }
 
@@ -86,7 +86,7 @@ fn window_check_fails_when_working_dir_is_missing() {
         working_dir: Some(working_dir.to_owned()),
         ..Window::default()
     };
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
@@ -113,7 +113,7 @@ fn window_check_fails_when_working_dir_is_not_a_directory() {
         working_dir: Some(working_dir.to_owned()),
         ..Window::default()
     };
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
@@ -135,7 +135,7 @@ fn window_check_fails_when_layout_and_split_are_both_used() {
         ..Window::default()
     };
 
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),
@@ -154,7 +154,7 @@ fn window_check_fails_when_layout_and_split_size_are_both_used() {
         ..Window::default()
     };
 
-    let result = window.check();
+    let result = window.check(1);
     assert!(result.is_err());
     assert_eq!(
         result.err().unwrap().to_string(),

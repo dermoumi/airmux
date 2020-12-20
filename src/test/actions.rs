@@ -3,7 +3,6 @@ use std::ffi::OsString;
 use std::os;
 use std::path::PathBuf;
 use tempfile::tempdir;
-use tera::Filter;
 
 fn make_config(tmux_command: Option<OsString>, config_dir: Option<PathBuf>) -> Config {
     Config {
@@ -530,13 +529,4 @@ fn env_context_returns_none_if_out_of_bounds() {
     .unwrap();
 
     assert_eq!(result, None);
-}
-
-#[test]
-fn quote_filter_quotes_correctly() {
-    let quote_filter = source::QuoteFilter {};
-    let result = quote_filter
-        .filter(&tera::Value::from("hello 'world'"), &HashMap::new())
-        .unwrap();
-    assert_eq!(result, "'hello '\\''world'\\'''");
 }
