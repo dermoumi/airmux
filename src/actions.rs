@@ -364,12 +364,12 @@ mod project {
         // Check if it's a number and that it's > 0 and <= args.len()
         if let Ok(arg_index) = s.parse::<usize>() {
             if arg_index > 0 && arg_index <= args.len() {
-                return Ok(Some(args[arg_index - 1].to_owned()));
+                return Ok(Some(args[arg_index - 1].replace("\\", "\\\\")));
             }
         }
 
         // Fallback to env vars
-        Ok(env::var(s).ok())
+        Ok(env::var(s).ok().map(|s| s.replace("\\", "\\\\")))
     }
 
     pub fn test_for_file_extensions<P>(path: P) -> Result<PathBuf, Box<dyn error::Error>>
