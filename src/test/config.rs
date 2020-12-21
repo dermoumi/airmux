@@ -4,8 +4,8 @@ use clap::{App, Arg};
 use std::fs;
 use tempfile::tempdir;
 
-const APP_NAME: &'static str = "test_app_name";
-const APP_AUTHOR: &'static str = "test_app_author";
+const APP_NAME: &str = "test_app_name";
+const APP_AUTHOR: &str = "test_app_author";
 
 fn make_config(
     app_name: Option<&'static str>,

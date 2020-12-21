@@ -1,4 +1,4 @@
-name: cargo-aduit
+name: cargo-audit
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, window-latest]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/audit-check@v1
