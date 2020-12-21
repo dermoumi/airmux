@@ -1,4 +1,4 @@
-use dialoguer::Confirm;
+use console::Term;
 use shell_words::split;
 use snafu::{ensure, Snafu};
 use std::error;
@@ -64,11 +64,24 @@ where
 }
 
 pub fn prompt_confirmation(message: &str, default: bool) -> Result<bool, Box<dyn error::Error>> {
-    Ok(Confirm::new()
-        .with_prompt(message)
-        .default(default)
-        .show_default(true)
-        .interact()?)
+    let reply_hint = if default { "Y/n" } else { "y/N" };
+
+    // Use the unbuffered stdout to print the prompt
+    let term = Term::stdout();
+    term.write_str(&format!("{} ({}): ", message, reply_hint))?;
+
+    // Get reply
+    let reply = term.read_char()?;
+    let reply = if reply == '\n' {
+        default
+    } else {
+        reply.to_ascii_lowercase() == 'y'
+    };
+
+    // Type out the reply before returning
+    term.write_line(if reply { "y" } else { "n" })?;
+
+    Ok(reply)
 }
 
 #[cfg(test)]

@@ -129,18 +129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dialoguer"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70f807b2943dc90f9747497d9d65d7e92472149be0b88bf4ce1201b4ac979c26"
-dependencies = [
- "console",
- "lazy_static",
- "tempfile",
- "zeroize",
-]
-
-[[package]]
 name = "dirs"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -357,7 +345,7 @@ version = "0.1.0"
 dependencies = [
  "app_dirs",
  "clap",
- "dialoguer",
+ "console",
  "main_error",
  "mkdirp",
  "serde",
@@ -614,9 +602,3 @@ checksum = "39f0c922f1a334134dc2f7a8b67dc5d25f0735263feec974345ff706bcf20b0d"
 dependencies = [
  "linked-hash-map",
 ]
-
-[[package]]
-name = "zeroize"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45af6a010d13e4cf5b54c94ba5a2b2eba5596b9e46bf5875612d332a1f2b3f86"
