@@ -55,7 +55,7 @@ fn fails_when_project_name_is_an_absolute_path() {
 #[test]
 #[cfg(windows)]
 fn fails_when_project_name_is_an_absolute_path_windows() {
-    let name = OsString::from("c:/project");
+    let name = "c:/project";
 
     let result = get_project_namespace(&name);
     assert!(result.is_err());

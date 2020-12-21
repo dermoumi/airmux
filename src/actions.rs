@@ -353,8 +353,6 @@ mod project {
     where
         P: AsRef<Path>,
     {
-        let project_name = project_name.as_ref();
-
         let project_yaml = fs::read_to_string(project_file)?;
         let project_yaml = env_with_context(&project_yaml, |s| env_context(s, args))
             .map_err(|x| x.to_string())?

@@ -120,12 +120,12 @@ impl Project {
 
         let mut full_args = vec![];
 
-        // Build tmux_socket arguments
+        // Add tmux_socket arguments
         if let Some(tmux_socket) = &self.tmux_socket {
             full_args.extend_from_slice(&["-L", tmux_socket]);
         }
 
-        // Convert tmux_options ot OsString
+        // Add tmux_options as individual argument
         let tmux_options_split;
         if let Some(tmux_options) = &self.tmux_options {
             tmux_options_split = split(tmux_options)?;
@@ -134,6 +134,7 @@ impl Project {
             full_args.append(&mut tmux_options_split);
         }
 
+        // Add passed arguments
         full_args.extend_from_slice(args);
 
         // Use utiliy to split command and append args to the split arguments
