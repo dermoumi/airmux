@@ -693,7 +693,14 @@ mod source {
                     "run",
                     "-t",
                     target_window,
-                    &project.tmux(&["setenv", "-t", session_name, "-g", target_pane, "#D"])?,
+                    &project.tmux(&[
+                        "setenv",
+                        "-t",
+                        session_name,
+                        "-g",
+                        &format!("__RMUX_PANE_{}", target_pane_index),
+                        "#D",
+                    ])?,
                 ]));
 
                 // project and window's on_pane_create
