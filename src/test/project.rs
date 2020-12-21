@@ -5,11 +5,11 @@ use tempfile::tempdir;
 
 use std::fs;
 
-fn make_config(tmux_command: Option<OsString>, config_dir: Option<PathBuf>) -> Config {
+fn make_config(tmux_command: Option<&str>, config_dir: Option<PathBuf>) -> Config {
     Config {
         app_name: "test_app_name",
         app_author: "test_app_author",
-        tmux_command,
+        tmux_command: tmux_command.map(String::from),
         config_dir,
     }
 }
@@ -81,8 +81,8 @@ fn project_prepare_replaces_attach_when_force_attach_is_set() {
 
 #[test]
 fn project_prepare_replaces_tmux_command_if_set_in_config() {
-    let tmux_command = OsString::from("other_tmux");
-    let config = make_config(Some(tmux_command.to_owned()), None);
+    let tmux_command = "other_tmux";
+    let config = make_config(Some(tmux_command), None);
 
     // When it's not definied in project file
     let project = Project::default().prepare(&config, "project_name", None);
@@ -257,22 +257,20 @@ fn project_get_tmux_command_splits_command_and_appends_options() {
         ..Project::default()
     };
 
-    let (command, args) = project
-        .tmux_command(vec![OsString::from("-o3"), OsString::from("option3")])
-        .unwrap();
+    let (command, args) = project.tmux_command(&["-o3", "option3"]).unwrap();
 
     assert_eq!(command, "tmux");
     assert_eq!(
         args,
         vec![
-            OsString::from("-o1"),
-            OsString::from("option1"),
-            OsString::from("-L"),
-            OsString::from("socket"),
-            OsString::from("-o2"),
-            OsString::from("option2"),
-            OsString::from("-o3"),
-            OsString::from("option3"),
+            String::from("-o1"),
+            String::from("option1"),
+            String::from("-L"),
+            String::from("socket"),
+            String::from("-o2"),
+            String::from("option2"),
+            String::from("-o3"),
+            String::from("option3"),
         ],
     );
 }
@@ -286,7 +284,7 @@ fn project_get_tmux_command_for_template_returns_joined_quoted_params() {
         ..Project::default()
     };
 
-    let command = project.tmux(Vec::<&str>::new()).unwrap();
+    let command = project.tmux(&[] as &[&str]).unwrap();
     assert_eq!(command, "tmux -o1 'op tion1' -L socket -o2 option2");
 }
 
@@ -297,7 +295,7 @@ fn project_get_tmux_command_for_template_returns_single_command() {
         ..Project::default()
     };
 
-    let command = project.tmux(Vec::<&str>::new()).unwrap();
+    let command = project.tmux(&[] as &[&str]).unwrap();
     assert_eq!(command, "tmux");
 }
 

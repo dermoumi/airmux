@@ -10,13 +10,13 @@ const APP_AUTHOR: &'static str = "test_app_author";
 fn make_config(
     app_name: Option<&'static str>,
     app_author: Option<&'static str>,
-    tmux_command: Option<OsString>,
+    tmux_command: Option<&str>,
     config_dir: Option<PathBuf>,
 ) -> Config {
     Config {
         app_name: app_name.unwrap_or(APP_NAME),
         app_author: app_author.unwrap_or(APP_AUTHOR),
-        tmux_command: Some(tmux_command.unwrap_or(OsString::from("tmux"))),
+        tmux_command: Some(String::from(tmux_command.unwrap_or("tmux"))),
         config_dir,
     }
 }
@@ -163,20 +163,18 @@ fn get_projects_dir_returns_correct_subdir_path() {
 
 #[test]
 fn get_tmux_command_splits_commands_correctly() {
-    let test_config = make_config(None, None, Some(OsString::from("tmuxor -o1 option1")), None);
+    let test_config = make_config(None, None, Some("tmuxor -o1 option1"), None);
 
-    let (command, args) = test_config
-        .get_tmux_command(vec![OsString::from("-o2"), OsString::from("option2")])
-        .unwrap();
+    let (command, args) = test_config.get_tmux_command(&["-o2", "option2"]).unwrap();
 
     assert_eq!(command, "tmuxor");
     assert_eq!(
         args,
         vec![
-            OsString::from("-o1"),
-            OsString::from("option1"),
-            OsString::from("-o2"),
-            OsString::from("option2"),
+            String::from("-o1"),
+            String::from("option1"),
+            String::from("-o2"),
+            String::from("option2"),
         ],
     );
 }

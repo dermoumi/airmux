@@ -33,10 +33,10 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --config-dir <DIR>     configuration directory to use [env: RMUX_CONFIG=]
+    -c, --config-dir <DIR>    configuration directory to use [env: RMUX_CONFIG=]
 
 SUBCOMMANDS:
-    debug     only print tmux command source without actually running tmux
+    debug     Print tmux source without actually running tmux
     edit      Create or edit a project
     freeze    Save current tmux session as a project file (commands not included)
     help      Prints this message or the help of the given subcommand(s)

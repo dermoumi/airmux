@@ -1,14 +1,13 @@
 use super::*;
-use std::ffi::OsString;
 use std::os;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-fn make_config(tmux_command: Option<OsString>, config_dir: Option<PathBuf>) -> Config {
+fn make_config(tmux_command: Option<&str>, config_dir: Option<PathBuf>) -> Config {
     Config {
         app_name: "test_app_name",
         app_author: "test_app_author",
-        tmux_command: Some(tmux_command.unwrap_or(OsString::from("tmux"))),
+        tmux_command: Some(String::from(tmux_command.unwrap_or("tmux"))),
         config_dir,
     }
 }
@@ -18,16 +17,16 @@ fn edit_project_fails_when_editor_is_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("project");
+    let project_name = "project";
 
     assert!(matches!(
         edit_project(
             &test_config,
             Some(project_name),
-            Some(OsString::from("yml")),
+            Some("yml"),
             "",
             false,
-            vec![]
+            &[]
         )
         .err()
         .unwrap()
@@ -42,7 +41,7 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("project");
+    let project_name = "project";
     let project_path = test_config
         .get_projects_dir(&project_name)
         .unwrap()
@@ -51,10 +50,10 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
     let result = edit_project(
         &test_config,
         Some(project_name),
-        Some(OsString::from("yml")),
+        Some("yml"),
         "test",
         false,
-        vec![],
+        &[],
     );
 
     assert!(project_path.is_file());
@@ -66,7 +65,7 @@ fn edit_project_succeeds_when_project_file_exists() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("project");
+    let project_name = "project";
 
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
@@ -79,10 +78,10 @@ fn edit_project_succeeds_when_project_file_exists() {
     let result = edit_project(
         &test_config,
         Some(project_name),
-        Some(OsString::from("yml")),
+        Some("yml"),
         "test",
         false,
-        vec![],
+        &[],
     );
 
     assert!(project_path.is_file());
@@ -94,7 +93,7 @@ fn edit_project_creates_sub_directories_as_needed() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("subdir1/subdir2/project");
+    let project_name = "subdir1/subdir2/project";
     let subdir_path = test_config.get_projects_dir("subdir1/subdir2").unwrap();
     let project_path = test_config
         .get_projects_dir(&project_name)
@@ -104,10 +103,10 @@ fn edit_project_creates_sub_directories_as_needed() {
     edit_project(
         &test_config,
         Some(project_name),
-        Some(OsString::from("yml")),
+        Some("yml"),
         "test",
         false,
-        vec![],
+        &[],
     )
     .unwrap();
 
@@ -120,7 +119,7 @@ fn edit_project_fails_when_project_path_is_directory() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("project");
+    let project_name = "project";
     let project_path = test_config
         .get_projects_dir(&project_name)
         .unwrap()
@@ -132,10 +131,10 @@ fn edit_project_fails_when_project_path_is_directory() {
     let result = edit_project(
         &test_config,
         Some(project_name),
-        Some(OsString::from("yml")),
+        Some("yml"),
         "test",
         false,
-        vec![],
+        &[],
     );
     assert!(result.is_err());
     assert!(matches!(
@@ -149,15 +148,15 @@ fn edit_project_project_name_cannot_be_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("");
+    let project_name = "";
 
     let result = edit_project(
         &test_config,
         Some(project_name),
-        Some(OsString::from("yml")),
+        Some("yml"),
         "test",
         false,
-        vec![],
+        &[],
     );
     assert!(result.is_err());
     assert!(matches!(
@@ -171,21 +170,21 @@ fn edit_project_fails_if_extension_is_not_supported() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("project");
-    let unsupported_extension = OsString::from("exe");
+    let project_name = "project";
+    let unsupported_extension = "exe";
 
     let result = edit_project(
         &test_config,
         Some(project_name),
-        Some(unsupported_extension.to_owned()),
+        Some(unsupported_extension),
         "test",
         false,
-        vec![],
+        &[],
     );
     assert!(result.is_err());
     assert!(matches!(
         result.err().unwrap().downcast_ref::<Error>().unwrap(),
-        Error::UnsupportedFileExtension { extension } if extension == &unsupported_extension
+        Error::UnsupportedFileExtension { extension } if extension == unsupported_extension
     ));
 }
 
@@ -199,11 +198,11 @@ fn edit_project_creates_file_locally() {
     let temp_local_dir = temp_local_dir.path();
     std::env::set_current_dir(temp_local_dir).unwrap();
 
-    let extension = OsString::from("json");
-    let project_file = temp_local_dir.join(".rmux").with_extension(&extension);
+    let extension = "json";
+    let project_file = temp_local_dir.join(".rmux").with_extension(extension);
     assert!(!project_file.exists());
 
-    edit_project(&test_config, None, Some(extension), "test", false, vec![]).unwrap();
+    edit_project(&test_config, None, Some(extension), "test", false, &[]).unwrap();
     assert!(project_file.exists());
 }
 
@@ -212,7 +211,7 @@ fn remove_project_removes_existing_project() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("project");
+    let project_name = "project";
 
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
@@ -231,7 +230,7 @@ fn remove_project_removes_parent_subdirectories_if_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("subdir1/subdir2/project");
+    let project_name = "subdir1/subdir2/project";
 
     // Make sure the project's parent directory exists
     let namespace = utils::get_project_namespace(&project_name).unwrap();
@@ -256,8 +255,8 @@ fn remove_project_does_not_remove_parent_subdirs_if_not_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project1_name = OsString::from("subdir1/subdir2/project1");
-    let project2_name = OsString::from("subdir1/project2");
+    let project1_name = "subdir1/subdir2/project1";
+    let project2_name = "subdir1/project2";
 
     // Make sure the project's parent directory exists
     let namespace = utils::get_project_namespace(&project1_name).unwrap();
@@ -287,13 +286,13 @@ fn remove_project_fails_if_project_does_not_exist() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project1_name = OsString::from("project");
+    let project1_name = "project";
 
-    let result = remove_project(&test_config, Some(project1_name.to_owned()), true);
+    let result = remove_project(&test_config, Some(project1_name), true);
     assert!(result.is_err());
     assert!(matches!(
         result.err().unwrap().downcast_ref::<Error>().unwrap(),
-        Error::ProjectDoesNotExist { project_name } if project_name == &project1_name
+        Error::ProjectDoesNotExist { project_name } if project_name == project1_name
     ));
 }
 
@@ -302,7 +301,7 @@ fn remove_project_project_name_cannot_be_empty() {
     let temp_dir = tempdir().unwrap();
     let temp_dir = temp_dir.path().to_path_buf();
     let test_config = make_config(None, Some(temp_dir));
-    let project_name = OsString::from("");
+    let project_name = "";
 
     let result = remove_project(&test_config, Some(project_name), true);
     assert!(result.is_err());
@@ -344,7 +343,7 @@ fn list_project_does_not_fail() {
     let projects_dir = test_config.get_projects_dir("").unwrap();
 
     for n in 0..5 {
-        let project_name = OsString::from(format!("project{}", n));
+        let project_name = format!("project{}", n);
 
         edit::create_project(&project_name, projects_dir.join(&project_name), "yml", None).unwrap();
     }
@@ -359,7 +358,7 @@ fn get_project_list_returns_projects_without_extensions() {
 
     let mut expected_project_list = Vec::with_capacity(5);
     for n in 0..5 {
-        let project_name = OsString::from(format!("project{}", n));
+        let project_name = format!("project{}", n);
 
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
@@ -382,7 +381,7 @@ fn list_shows_projects_in_subdirectories() {
 
     let mut expected_project_list = Vec::with_capacity(4);
     for n in 0..2 {
-        let project_name = OsString::from(format!("project{}", n));
+        let project_name = format!("project{}", n);
 
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
@@ -391,7 +390,7 @@ fn list_shows_projects_in_subdirectories() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = OsString::from(format!("subdir1/project{}", n));
+        let project_name = format!("subdir1/project{}", n);
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -401,7 +400,7 @@ fn list_shows_projects_in_subdirectories() {
         expected_project_list.push(project_name);
     }
     for n in 4..6 {
-        let project_name = OsString::from(format!("subdir2/project{}", n));
+        let project_name = format!("subdir2/project{}", n);
         mkdirp(temp_dir.join("subdir2")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -425,7 +424,7 @@ fn list_follows_symlinks() {
 
     let mut expected_project_list = Vec::with_capacity(4);
     for n in 0..2 {
-        let project_name = OsString::from(format!("project{}", n));
+        let project_name = format!("project{}", n);
 
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
@@ -434,7 +433,7 @@ fn list_follows_symlinks() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = OsString::from(format!("subdir1/project{}", n));
+        let project_name = format!("subdir1/project{}", n);
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -444,7 +443,7 @@ fn list_follows_symlinks() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = OsString::from(format!("subdir2/project{}", n));
+        let project_name = format!("subdir2/project{}", n);
 
         expected_project_list.push(project_name);
     }
@@ -469,7 +468,7 @@ fn list_detects_symlink_loops() {
 
     let mut expected_project_list = Vec::with_capacity(4);
     for n in 0..2 {
-        let project_name = OsString::from(format!("project{}", n));
+        let project_name = format!("project{}", n);
 
         let project_path = temp_dir.join(&project_name);
         let project_path = project::test_for_file_extensions(project_path).unwrap();
@@ -478,7 +477,7 @@ fn list_detects_symlink_loops() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = OsString::from(format!("subdir1/project{}", n));
+        let project_name = format!("subdir1/project{}", n);
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -503,30 +502,14 @@ fn list_detects_symlink_loops() {
 
 #[test]
 fn env_context_returns_positional_vars_if_in_bounds() {
-    let result = project::env_context(
-        "2",
-        &vec![
-            String::from("var1"),
-            String::from("var2"),
-            String::from("var3"),
-        ],
-    )
-    .unwrap();
+    let result = project::env_context("2", &["var1", "var2", "var3"]).unwrap();
 
     assert_eq!(result, Some(String::from("var2")));
 }
 
 #[test]
 fn env_context_returns_none_if_out_of_bounds() {
-    let result = project::env_context(
-        "0",
-        &vec![
-            String::from("var1"),
-            String::from("var2"),
-            String::from("var3"),
-        ],
-    )
-    .unwrap();
+    let result = project::env_context("0", &["var1", "var2", "var3"]).unwrap();
 
     assert_eq!(result, None);
 }

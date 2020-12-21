@@ -1,16 +1,16 @@
+use console::Term;
 use shell_words::split;
 use snafu::{ensure, Snafu};
 use std::error;
-use std::ffi::{OsStr, OsString};
 use std::path;
 use std::path::PathBuf;
 
 #[derive(Debug, Snafu)]
 pub enum Error {
     #[snafu(display("Project name {:?} cannot not have a trailing slash", project_name))]
-    ProjectNameTrailingSlash { project_name: OsString },
+    ProjectNameTrailingSlash { project_name: String },
     #[snafu(display("Project name {:?} cannot not be an absolute path", project_name))]
-    ProjectNameAbsolutePath { project_name: OsString },
+    ProjectNameAbsolutePath { project_name: String },
     #[snafu(display("Command cannot be empty"))]
     EmptyCommand {},
     #[snafu(display("name {:?} cannot contain the following characters: .: ", identifier))]
@@ -24,20 +24,13 @@ pub fn valid_tmux_identifier(identifier: &str) -> Result<(), Box<dyn error::Erro
         identifier.find(&['.', ':'][..]).is_none(),
         TmuxIdentifierIllegalCharacters { identifier }
     );
-
     ensure!(!identifier.is_empty(), TmuxIdentifierEmpty {});
 
     Ok(())
 }
 
-pub fn get_project_namespace<S: AsRef<OsStr>>(
-    project_name: S,
-) -> Result<PathBuf, Box<dyn error::Error>> {
-    let project_name = project_name.as_ref();
-
-    let has_trailing_slash = project_name
-        .to_string_lossy()
-        .ends_with(path::MAIN_SEPARATOR);
+pub fn get_project_namespace(project_name: &str) -> Result<PathBuf, Box<dyn error::Error>> {
+    let has_trailing_slash = project_name.ends_with(path::MAIN_SEPARATOR);
     ensure!(
         !has_trailing_slash,
         ProjectNameTrailingSlash { project_name }
@@ -50,23 +43,45 @@ pub fn get_project_namespace<S: AsRef<OsStr>>(
 }
 
 pub fn parse_command(
-    command: &OsStr,
-    args: &[OsString],
-) -> Result<(OsString, Vec<OsString>), Box<dyn error::Error>> {
+    command: &str,
+    args: &[&str],
+) -> Result<(String, Vec<String>), Box<dyn error::Error>> {
     ensure!(!command.is_empty(), EmptyCommand {});
 
-    let mut command_parts = split(&command.to_string_lossy())?
-        .into_iter()
-        .map(|x| x.into())
-        .chain(args.into_iter().map(|x| x.into()));
+    let args_iter = args.to_owned().into_iter().map(String::from);
+    let mut command_parts = split(command)?.into_iter().chain(args_iter);
 
     let new_command = command_parts.next().unwrap();
-    let new_args: Vec<OsString> = command_parts.collect();
+    let new_args: Vec<String> = command_parts.collect();
     Ok((new_command, new_args))
 }
 
-pub fn is_default<T: Default + PartialEq>(t: &T) -> bool {
+pub fn is_default<T>(t: &T) -> bool
+where
+    T: Default + PartialEq,
+{
     t == &T::default()
+}
+
+pub fn prompt_confirmation(message: &str, default: bool) -> Result<bool, Box<dyn error::Error>> {
+    let reply_hint = if default { "Y/n" } else { "y/N" };
+
+    // Use the unbuffered stdout to print the prompt
+    let term = Term::stdout();
+    term.write_str(&format!("{} ({}): ", message, reply_hint))?;
+
+    // Get reply
+    let reply = term.read_char()?;
+    let reply = if reply == '\n' {
+        default
+    } else {
+        reply.to_ascii_lowercase() == 'y'
+    };
+
+    // Type out the reply before returning
+    term.write_line(if reply { "y" } else { "n" })?;
+
+    Ok(reply)
 }
 
 #[cfg(test)]
