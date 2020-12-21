@@ -16,6 +16,7 @@ use std::env;
 use std::error;
 use std::fs;
 use std::io::prelude::*;
+use std::iter;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -409,12 +410,13 @@ mod source {
 
     pub fn generate(project: &Project, verbose: bool) -> Result<String, Box<dyn error::Error>> {
         let tmux_command = project.tmux(&[] as &[&str])?;
-        let tmux_command = tmux_command.as_str();
+        let tmux_command = &tmux_command;
 
         let session_name = project.session_name.to_owned().unwrap();
-        let session_name = session_name.as_str();
+        let session_name = &session_name;
+        let session_name_quoted = &quote(session_name);
 
-        let mut source_commands = Vec::with_capacity(12);
+        let mut source_commands = Vec::new();
 
         // Clean up potentially lingering tmux env vars
         source_commands.push(join(&["set-environment", "-gu", "__RMUX_SESSION_CREATED"]));
@@ -432,124 +434,111 @@ mod source {
         if !project.on_start.is_empty() {
             source_commands.push(join(&[
                 "run-shell",
-                project
-                    .on_start
-                    .join(";")
-                    .replace("__TMUX__", tmux_command)
-                    .as_str(),
+                &project.on_start.join(";").replace("__TMUX__", tmux_command),
             ]));
         }
 
         // create session if it does not exist
-        source_commands.push(join(&[
-            "if-shell",
-            format!(
+        {
+            let if_command = format!(
                 "! {} | {}",
                 project.tmux(&["list-sessions", "-F", "##S"])?,
                 join(&["grep", "-Fx", session_name]),
-            )
-            .as_str(),
-            vec![
-                // Create new session
-                join(&["new-session", "-s", session_name, "-d"]),
-                // Move the first window away temporarily
-                join(&[
-                    "move-window",
-                    "-s",
-                    format!("{}:^", session_name).as_str(),
+            );
+
+            let mut commands = vec![];
+
+            // Create new session
+            commands.push(join(&["new-session", "-s", session_name, "-d"]));
+
+            // Move the first window away temporarily
+            commands.push(join(&[
+                "move-window",
+                "-s",
+                &format!("{}:^", session_name),
+                "-t",
+                &format!("{}:999999", session_name),
+            ]));
+
+            // on_first_start commands
+            if !project.on_first_start.is_empty() {
+                commands.push(join(&[
+                    "run-shell",
+                    &project
+                        .on_first_start
+                        .join(";")
+                        .replace("__TMUX__", tmux_command)
+                        .replace("__SESSION__", session_name_quoted),
+                ]))
+            }
+
+            // on_exit commands
+            if !project.on_exit.is_empty() {
+                let run_shell_command = join(&[
+                    "run-shell",
+                    &project.on_exit.join(";").replace("__TMUX__", tmux_command),
+                ]);
+
+                commands.push(join(&[
+                    "set-hook",
                     "-t",
-                    format!("{}:999999", session_name).as_str(),
-                ]),
-                // on_first_start commands
-                if !project.on_first_start.is_empty() {
-                    join(&[
-                        "run-shell",
-                        project
-                            .on_first_start
-                            .join(";")
-                            .replace("__TMUX__", tmux_command)
-                            .replace("__SESSION__", quote(session_name).to_string().as_str())
-                            .as_str(),
-                    ])
-                } else {
-                    String::new()
-                },
-                // on_exit commands
-                if !project.on_exit.is_empty() {
-                    join(&[
-                        "set-hook",
-                        "-t",
-                        session_name,
-                        "-a",
-                        "client-detached",
-                        format!(
-                            "run-shell {}",
-                            quote(
-                                project
-                                    .on_exit
-                                    .join(";")
-                                    .replace("__TMUX__", tmux_command)
-                                    .as_str()
-                            )
-                        )
-                        .as_str(),
-                    ])
-                } else {
-                    String::new()
-                },
-                // on_stop (+on_exit) commands
-                if !project.on_exit.is_empty() || !project.on_stop.is_empty() {
-                    let mut command_list = project
-                        .on_exit
-                        .to_owned()
-                        .into_iter()
-                        .chain(project.on_stop.to_owned().into_iter())
-                        .collect::<Vec<String>>();
-                    command_list.push(project.tmux(&[
+                    session_name,
+                    "-a",
+                    "client-detached",
+                    &run_shell_command,
+                ]));
+            }
+
+            // on_stop (+on_exit) commands
+            if !project.on_exit.is_empty() || !project.on_stop.is_empty() {
+                let command_list = project
+                    .on_exit
+                    .to_owned()
+                    .into_iter()
+                    .chain(project.on_stop.to_owned().into_iter())
+                    .chain(iter::once(project.tmux(&[
                         "set-hook",
                         "-gu",
                         "session-closed[#{session_created}]",
-                    ])?);
+                    ])?))
+                    .collect::<Vec<String>>();
 
-                    let if_command = format!(
-                        "! {} | {}",
-                        project.tmux(&["list-sessions", "-F", "####S"])?,
-                        join(&["grep", "-Fx", session_name]),
-                    );
+                let if_command = format!(
+                    "! {} | {}",
+                    project.tmux(&["list-sessions", "-F", "####S"])?,
+                    join(&["grep", "-Fx", session_name]),
+                );
 
-                    let run_shell_command = join(&[
-                        "run-shell",
-                        command_list
-                            .join(";")
-                            .replace("__TMUX__", tmux_command)
-                            .as_str(),
-                    ]);
+                let run_shell_command = join(&[
+                    "run-shell",
+                    &command_list.join(";").replace("__TMUX__", tmux_command),
+                ]);
 
-                    let hook_command =
-                        join(&["if-shell", if_command.as_str(), run_shell_command.as_str()]);
+                let hook_command = join(&["if-shell", &if_command, &run_shell_command]);
 
-                    let set_hook_command = project.tmux(&[
-                        "set-hook",
-                        "-g",
-                        "session-closed[#{session_created}]",
-                        hook_command.as_str(),
-                    ])?;
+                let set_hook_command = project.tmux(&[
+                    "set-hook",
+                    "-g",
+                    "session-closed[#{session_created}]",
+                    &hook_command,
+                ])?;
 
-                    let run_shell_set_hook_command =
-                        join(&["run-shell", "-t", session_name, set_hook_command.as_str()]);
+                let run_shell_set_hook_command =
+                    join(&["run-shell", "-t", session_name, &set_hook_command]);
 
-                    vec!["set -g exit-empty off", run_shell_set_hook_command.as_str()].join(";")
-                } else {
-                    String::new()
-                },
+                commands.push(vec!["set -g exit-empty off", &run_shell_set_hook_command].join(";"))
+            }
+
+            let run_shell_command = vec![
                 // Set whether the session was created or not
                 String::from("set-environment -g __RMUX_SESSION_CREATED 1"),
                 // Unset the session attached variable
                 String::from("set-environment -gu __RMUX_SESSION_ATTACHED"),
             ]
-            .join(";")
-            .as_str(),
-        ]));
+            .join(";");
+
+            source_commands.push(join(&["if-shell", &if_command, &run_shell_command]));
+        }
 
         // on_restart commands
         if !project.on_restart.is_empty() {
@@ -557,16 +546,14 @@ mod source {
                 "if-shell",
                 "-F",
                 "#{__RMUX_SESSION_ATTACHED}",
-                join(&[
+                &join(&[
                     "run-shell",
-                    project
+                    &project
                         .on_restart
                         .join(";")
                         .replace("__TMUX__", tmux_command)
-                        .replace("__SESSION__", quote(session_name).to_string().as_str())
-                        .as_str(),
-                ])
-                .as_str(),
+                        .replace("__SESSION__", session_name_quoted),
+                ]),
             ]));
         }
 
@@ -577,385 +564,286 @@ mod source {
             "-t",
             session_name,
             "base-index",
-            project.window_base_index.to_string().as_str(),
+            &project.window_base_index.to_string(),
         ]));
 
         // Setup windows
-        source_commands.push(
-            project
-                .windows
-                .iter()
-                .enumerate()
-                .map(
-                    |(window_index, window)| -> Result<String, Box<dyn error::Error>> {
-                        let window_tmux_index = window_index + project.window_base_index;
-                        let target_window = format!("{}:{}", session_name, window_tmux_index);
-                        let target_window = target_window.as_str();
+        for (window_index, window) in project.windows.iter().enumerate() {
+            let window_tmux_index = window_index + project.window_base_index;
+            let target_window = &format!("{}:{}", session_name, window_tmux_index);
 
-                        let if_command = format!(
-                            "! {} | {}",
-                            project.tmux(&["list-windows", "-t", session_name, "-F", "##I",])?,
-                            join(&["grep", "-Fx", window_tmux_index.to_string().as_str(),])
-                        );
+            let target_window_quoted = &quote(target_window);
 
-                        let mut new_window_command = vec!["new-window", "-d", "-t", target_window];
+            let if_command = format!(
+                "! {} | {}",
+                project.tmux(&["list-windows", "-t", session_name, "-F", "##I",])?,
+                join(&["grep", "-Fx", &window_tmux_index.to_string()])
+            );
 
-                        let mut found_working_dir = false;
-                        let mut working_dir = String::new();
+            let mut new_window_command = vec!["new-window", "-d", "-t", target_window];
 
-                        if !window.panes.is_empty() {
-                            if let Some(wd) = &window.panes[0].working_dir {
-                                working_dir = wd.to_string_lossy().to_string();
-                                found_working_dir = true;
+            let mut found_working_dir = false;
+            let mut working_dir = String::new();
+
+            if !window.panes.is_empty() {
+                if let Some(wd) = &window.panes[0].working_dir {
+                    working_dir = wd.to_string_lossy().to_string();
+                    found_working_dir = true;
+                }
+            }
+            if !found_working_dir {
+                if let Some(wd) = &window.working_dir {
+                    working_dir = wd.to_string_lossy().to_string();
+                    found_working_dir = true;
+                }
+            }
+            if !found_working_dir {
+                if let Some(wd) = &project.working_dir {
+                    working_dir = wd.to_string_lossy().to_string();
+                    found_working_dir = true;
+                }
+            }
+
+            if found_working_dir {
+                new_window_command.splice(2..2, vec!["-c", &working_dir].into_iter());
+            }
+
+            let mut window_commands = Vec::new();
+
+            // Create the window
+            window_commands.push(join(&new_window_command));
+
+            // Pane base index for this window
+            window_commands.push(join(&[
+                "set",
+                "-s",
+                "-t",
+                target_window,
+                "pane-base-index",
+                &project.pane_base_index.to_string(),
+            ]));
+
+            // Rename the window (if a name is set)
+            // Renaming is a separate step so that we could update existing windows
+            if let Some(window_name) = &window.name {
+                window_commands.push(join(&["rename-window", "-t", target_window, window_name]));
+            }
+
+            // Window on_create commands
+            if !window.on_create.is_empty() {
+                window_commands.push(join(&[
+                    "run-shell",
+                    &window
+                        .on_create
+                        .join(";")
+                        .replace("__TMUX__", tmux_command)
+                        .replace("__SESSION__", session_name_quoted)
+                        .replace("__WINDOW__", target_window_quoted),
+                ]));
+            };
+
+            // Panes
+            for (pane_index, pane) in window.panes.iter().enumerate() {
+                let target_pane_index = pane_index + project.pane_base_index;
+                let target_pane = &format!("#{{__RMUX_PANE_{}}}", target_pane_index);
+                let target_pane_quoted = &quote(target_pane);
+
+                // Create pane (first one is automatically created)
+                if pane_index > 0 {
+                    // Split direction (defaults to horizontal)
+                    let mut split_command = vec![
+                        "split-window",
+                        match &pane.split {
+                            Some(split) if *split == PaneSplit::Vertical => "-v",
+                            _ => "-h",
+                        },
+                    ];
+
+                    // Working directory
+                    let mut found_working_dir = true;
+                    let mut working_dir = String::new();
+
+                    if let Some(wd) = &pane.working_dir {
+                        working_dir = wd.to_string_lossy().to_string();
+                    } else if let Some(wd) = &window.working_dir {
+                        working_dir = wd.to_string_lossy().to_string();
+                    } else if let Some(wd) = &project.working_dir {
+                        working_dir = wd.to_string_lossy().to_string();
+                    } else {
+                        found_working_dir = false;
+                    }
+
+                    if found_working_dir {
+                        split_command.append(&mut vec!["-c", &working_dir]);
+                    }
+
+                    // Split size
+                    if let Some(split_size) = &pane.split_size {
+                        split_command.append(&mut vec!["-l", split_size]);
+                    }
+
+                    // Target pane
+                    let split_from_target;
+                    split_command.append(&mut vec![
+                        "-t",
+                        match &pane.split_from {
+                            None => target_window,
+                            Some(split_from) => {
+                                split_from_target = format!("#{{__RMUX_PANE_{}}}", split_from);
+                                &split_from_target
                             }
-                        }
-                        if !found_working_dir {
-                            if let Some(wd) = &window.working_dir {
-                                working_dir = wd.to_string_lossy().to_string();
-                                found_working_dir = true;
-                            }
-                        }
-                        if !found_working_dir {
-                            if let Some(wd) = &project.working_dir {
-                                working_dir = wd.to_string_lossy().to_string();
-                                found_working_dir = true;
-                            }
-                        }
+                        },
+                    ]);
 
-                        if found_working_dir {
-                            new_window_command
-                                .splice(2..2, vec!["-c", working_dir.as_str()].into_iter());
-                        }
+                    // Create pane
+                    window_commands.push(join(&["run-shell", &project.tmux(&split_command)?]));
+                }
 
-                        let run_shell_command = vec![
-                            // Create the window
-                            join(&new_window_command),
-                            // Pane base index
-                            join(&[
-                                "set",
-                                "-s",
-                                "-t",
-                                target_window,
-                                "pane-base-index",
-                                project.pane_base_index.to_string().as_str(),
-                            ]),
-                            // Rename the window
-                            if let Some(window_name) = &window.name {
-                                join(&["rename-window", "-t", target_window, window_name])
-                            } else {
-                                String::new()
-                            },
-                            // Window on_create commands
-                            if !window.on_create.is_empty() {
-                                join(&[
-                                    "run-shell",
-                                    window
-                                        .on_create
-                                        .join(";")
-                                        .replace("__TMUX__", tmux_command)
-                                        .replace(
-                                            "__SESSION__",
-                                            quote(session_name).to_string().as_str(),
-                                        )
-                                        .replace(
-                                            "__WINDOW__",
-                                            quote(target_window).to_string().as_str(),
-                                        )
-                                        .as_str(),
-                                ])
-                            } else {
-                                String::new()
-                            },
-                            // Panes
-                            window
-                                .panes
-                                .iter()
-                                .enumerate()
-                                .map(
-                                    |(pane_index, pane)| -> Result<String, Box<dyn error::Error>> {
-                                        let target_pane = format!(
-                                            "#{{__RMUX_PANE_{}}}",
-                                            pane_index + project.pane_base_index
-                                        );
-                                        let target_pane = target_pane.as_str();
+                // Set real tmux pane index as a __RMUX_PANE_idx environment
+                // Allows us to reference tmux panes with their project order
+                window_commands.push(join(&[
+                    "run-shell",
+                    "-t",
+                    target_window,
+                    &project.tmux(&[
+                        "set-environment",
+                        "-t",
+                        session_name,
+                        "-g",
+                        target_pane,
+                        "#D",
+                    ])?,
+                ]));
 
-                                        Ok(vec![
-                                        // Create pane (first one is automatically created)
-                                        if pane_index > 0 {
-                                            // Split direction
-                                            let mut split_command = vec![
-                                                "split-window",
-                                                match &pane.split {
-                                                    Some(split)
-                                                        if *split == PaneSplit::Vertical =>
-                                                    {
-                                                        "-v"
-                                                    }
-                                                    _ => "-h",
-                                                },
-                                            ];
+                // project and window's on_pane_create
+                // plus pane's on_create commands
+                let on_create_commands: Vec<String> = project
+                    .on_pane_create
+                    .iter()
+                    .cloned()
+                    .chain(window.on_pane_create.iter().cloned())
+                    .chain(pane.on_create.iter().cloned())
+                    .collect();
+                window_commands.push(join(&[
+                    "run-shell",
+                    &on_create_commands
+                        .join(";")
+                        .replace("__TMUX__", tmux_command)
+                        .replace("__SESSION__", session_name_quoted)
+                        .replace("__WINDOW__", target_window_quoted)
+                        .replace("__PANE__", target_pane_quoted),
+                ]));
 
-                                            // Working directory
-                                            let mut found_working_dir = true;
-                                            let mut working_dir = String::new();
+                // project and window's pane_commands
+                // plus pane commands
+                window_commands.push(join(&[
+                    "run-shell",
+                    &project
+                        .pane_commands
+                        .iter()
+                        .chain(window.pane_commands.iter())
+                        .chain(pane.commands.iter())
+                        .filter(|command| !command.is_empty())
+                        .map(|command| {
+                            project.tmux(&["send-keys", "-t", target_pane, command, "C-m"])
+                        })
+                        .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
+                        .join(";"),
+                ]));
 
-                                            if let Some(wd) = &pane.working_dir {
-                                                working_dir = wd.to_string_lossy().to_string();
-                                            } else if let Some(wd) = &window.working_dir {
-                                                working_dir = wd.to_string_lossy().to_string();
-                                            } else if let Some(wd) = &project.working_dir {
-                                                working_dir = wd.to_string_lossy().to_string();
-                                            } else {
-                                                found_working_dir = false;
-                                            }
+                // project and window's post_pane_create
+                // plus pane's post_create commands
+                let post_pane_commands: Vec<String> = project
+                    .post_pane_create
+                    .iter()
+                    .cloned()
+                    .chain(window.post_pane_create.iter().cloned())
+                    .chain(pane.post_create.iter().cloned())
+                    .collect();
+                window_commands.push(join(&[
+                    "run-shell",
+                    &post_pane_commands
+                        .join(";")
+                        .replace("__TMUX__", tmux_command)
+                        .replace("__SESSION__", session_name_quoted)
+                        .replace("__WINDOW__", target_window_quoted)
+                        .replace("__PANE__", target_pane_quoted),
+                ]));
 
-                                            if found_working_dir {
-                                                split_command
-                                                    .append(&mut vec!["-c", working_dir.as_str()]);
-                                            }
+                // pane's clear
+                if pane.clear {
+                    window_commands.push(join(&[
+                        "run-shell",
+                        &project.tmux(&["send-keys", "-t", target_pane, "C-l"])?,
+                    ]));
+                }
+            }
 
-                                            // Split size
-                                            if let Some(split_size) = &pane.split_size {
-                                                split_command.append(&mut vec!["-l", split_size]);
-                                            }
+            // Window layout
+            if let Some(layout) = &window.layout {
+                window_commands.push(join(&["select-layout", "-t", target_window, layout]));
+            }
 
-                                            // Target pane
-                                            let split_from_target;
-                                            split_command.append(&mut vec![
-                                                "-t",
-                                                match &pane.split_from {
-                                                    None => target_window,
-                                                    Some(split_from) => {
-                                                        split_from_target = format!(
-                                                            "#{{__RMUX_PANE_{}}}",
-                                                            split_from,
-                                                        );
+            // Clean up panes index env vars
+            window_commands.push(join(&[
+                "run-shell",
+                &window
+                    .panes
+                    .iter()
+                    .enumerate()
+                    .map(|(pane_index, _)| {
+                        let target_pane_index = pane_index + project.pane_base_index;
+                        let rmux_pane = format!("__RMUX_PANE_{}", target_pane_index);
+                        project.tmux(&["set-environment", "-gu", &rmux_pane])
+                    })
+                    .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
+                    .join(";"),
+            ]));
 
-                                                        split_from_target.as_str()
-                                                    }
-                                                },
-                                            ]);
+            // Select first pane
+            window_commands.push(join(&[
+                "select-pane",
+                "-t",
+                &format!("{}.{}", target_window, project.pane_base_index),
+            ]));
 
-                                            // Create pane
-                                            join(&[
-                                                "run-shell",
-                                                project.tmux(&split_command)?.as_str(),
-                                            ])
-                                        } else {
-                                            String::new()
-                                        },
-                                        // Set real tmux pane index as a __RMUX_PANE_idx environment
-                                        // Allows us to reference tmux panes with their project order
-                                        join(&[
-                                            "run-shell",
-                                            "-t",
-                                            target_window,
-                                            project
-                                                .tmux(&[
-                                                    "set-environment",
-                                                    "-t",
-                                                    session_name,
-                                                    "-g",
-                                                    format!(
-                                                        "__RMUX_PANE_{}",
-                                                        pane_index + project.pane_base_index
-                                                    )
-                                                    .as_str(),
-                                                    "#D",
-                                                ])?
-                                                .as_str(),
-                                        ]),
-                                        // project and window's on_pane_create
-                                        // plus pane's on_create commands
-                                        join(&[
-                                            "run-shell",
-                                            project
-                                                .on_pane_create
-                                                .iter()
-                                                .cloned()
-                                                .chain(window.on_pane_create.iter().cloned())
-                                                .chain(pane.on_create.iter().cloned())
-                                                .collect::<Vec<String>>()
-                                                .join(";")
-                                                .replace("__TMUX__", tmux_command)
-                                                .replace(
-                                                    "__SESSION__",
-                                                    quote(session_name).to_string().as_str(),
-                                                )
-                                                .replace(
-                                                    "__WINDOW__",
-                                                    quote(target_window).to_string().as_str(),
-                                                )
-                                                .replace(
-                                                    "__PANE__",
-                                                    quote(target_pane).to_string().as_str(),
-                                                )
-                                                .as_str(),
-                                        ]),
-                                        // project and window's pane_commands
-                                        // plus pane commands
-                                        join(&[
-                                                "run-shell",
-                                                project
-                                                    .pane_commands
-                                                    .iter()
-                                                    .chain(window.pane_commands.iter())
-                                                    .chain(pane.commands.iter())
-                                                    .filter(|command| !command.is_empty())
-                                                    .map(|command| {
-                                                        project.tmux(&[
-                                                            "send-keys",
-                                                            "-t",
-                                                            target_pane,
-                                                            command,
-                                                            "C-m",
-                                                        ])
-                                                    })
-                                                    .collect::<Result<
-                                                        Vec<String>,
-                                                        Box<dyn error::Error>,
-                                                    >>(
-                                                    )?
-                                                    .join(";")
-                                                    .as_str(),
-                                            ]),
-                                        // project and window's post_pane_create
-                                        // plus pane's post_create commands
-                                        join(&[
-                                            "run-shell",
-                                            project
-                                                .post_pane_create
-                                                .iter()
-                                                .cloned()
-                                                .chain(window.post_pane_create.iter().cloned())
-                                                .chain(pane.post_create.iter().cloned())
-                                                .collect::<Vec<String>>()
-                                                .join(";")
-                                                .replace("__TMUX__", tmux_command)
-                                                .replace(
-                                                    "__SESSION__",
-                                                    quote(session_name).to_string().as_str(),
-                                                )
-                                                .replace(
-                                                    "__WINDOW__",
-                                                    quote(target_window).to_string().as_str(),
-                                                )
-                                                .replace(
-                                                    "__PANE__",
-                                                    quote(target_pane).to_string().as_str(),
-                                                )
-                                                .as_str(),
-                                        ]),
-                                        // pane's clear
-                                        if pane.clear {
-                                            join(&[
-                                                "run-shell",
-                                                project
-                                                    .tmux(&[
-                                                        "send-keys",
-                                                        "-t",
-                                                        target_pane,
-                                                        "C-l",
-                                                    ])?
-                                                    .as_str(),
-                                            ])
-                                        } else {
-                                            String::new()
-                                        },
-                                    ]
-                                        .join(";"))
-                                    },
-                                )
-                                .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
-                                .join(";"),
-                            // Window layout
-                            if let Some(layout) = &window.layout {
-                                join(&["select-layout", "-t", target_window, layout])
-                            } else {
-                                String::new()
-                            },
-                            // Clean up panes index env vars
-                            join(&[
-                                "run-shell",
-                                window
-                                    .panes
-                                    .iter()
-                                    .enumerate()
-                                    .map(|(pane_index, _)| {
-                                        project.tmux(&[
-                                            "set-environment",
-                                            "-gu",
-                                            format!(
-                                                "__RMUX_PANE_{}",
-                                                pane_index + project.pane_base_index
-                                            )
-                                            .as_str(),
-                                        ])
-                                    })
-                                    .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
-                                    .join(";")
-                                    .as_str(),
-                            ]),
-                            // Select first pane
-                            join(&[
-                                "select-pane",
-                                "-t",
-                                format!("{}.{}", target_window, project.pane_base_index).as_str(),
-                            ]),
-                            // window post_create commands
-                            if !window.post_create.is_empty() {
-                                join(&[
-                                    "run-shell",
-                                    window
-                                        .post_create
-                                        .join(";")
-                                        .replace("__TMUX__", tmux_command)
-                                        .replace(
-                                            "__SESSION__",
-                                            quote(session_name).to_string().as_str(),
-                                        )
-                                        .replace(
-                                            "__WINDOW__",
-                                            quote(target_window).to_string().as_str(),
-                                        )
-                                        .as_str(),
-                                ])
-                            } else {
-                                String::new()
-                            },
-                            // Flag session as updated
-                            join(&["set-environment", "-g", "__RMUX_SESSION_UPDATED", "1"]),
-                        ]
-                        .join(";");
+            // window post_create commands
+            if !window.post_create.is_empty() {
+                window_commands.push(join(&[
+                    "run-shell",
+                    &window
+                        .post_create
+                        .join(";")
+                        .replace("__TMUX__", tmux_command)
+                        .replace("__SESSION__", session_name_quoted)
+                        .replace("__WINDOW__", target_window_quoted),
+                ]));
+            }
 
-                        Ok(join(&[
-                            "if-shell",
-                            if_command.as_str(),
-                            run_shell_command.as_str(),
-                        ]))
-                    },
-                )
-                .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
-                .join(";"),
-        );
+            // Flag session as updated
+            window_commands.push(join(&[
+                "set-environment",
+                "-g",
+                "__RMUX_SESSION_UPDATED",
+                "1",
+            ]));
+
+            source_commands.push(join(&["if-shell", &if_command, &window_commands.join(";")]));
+        }
 
         // Post-window creation routing for when the session is freshly created
         source_commands.push(join(&[
             "if-shell",
             "-F",
             "#{__RMUX_SESSION_CREATED}",
-            vec![
+            &vec![
                 // Remove the original window
-                join(&[
-                    "kill-window",
-                    "-t",
-                    (format!("{}:999999", session_name).as_str()),
-                ]),
+                join(&["kill-window", "-t", &format!("{}:999999", session_name)]),
                 // Set startup window
                 join(&[
                     "select-window",
                     "-t",
-                    match &project.startup_window {
+                    &match &project.startup_window {
                         StartupWindow::Index(startup_window) => {
                             format!("{}:{}", session_name, startup_window)
                         }
@@ -963,35 +851,31 @@ mod source {
                             format!("{}:{}", session_name, startup_window)
                         }
                         StartupWindow::Default => format!("{}:^", session_name),
-                    }
-                    .as_str(),
+                    },
                 ]),
                 // Set startup pane
                 join(&[
                     "select-pane",
                     "-t",
-                    match &project.startup_pane {
+                    &match &project.startup_pane {
                         None => project.pane_base_index,
                         Some(pane) => *pane,
                     }
-                    .to_string()
-                    .as_str(),
+                    .to_string(),
                 ]),
             ]
-            .join(";")
-            .as_str(),
+            .join(";"),
         ]));
 
         // post_create commands
         if !project.post_create.is_empty() {
             source_commands.push(join(&[
                 "run-shell",
-                project
+                &project
                     .post_create
                     .join(";")
                     .replace("__TMUX__", tmux_command)
-                    .replace("__SESSION__", quote(session_name).to_string().as_str())
-                    .as_str(),
+                    .replace("__SESSION__", session_name_quoted),
             ]));
         }
 
@@ -999,11 +883,11 @@ mod source {
         if verbose {
             source_commands.push(
                 vec![
-                    String::from("display -p \"#{?__RMUX_SESSION_CREATED,created new session:,"),
-                    String::from("#{?__RMUX_SESSION_UPDATED,updated session:,"),
-                    String::from("no changes to existing session:}} "),
-                    session_name.to_string(),
-                    String::from("\""),
+                    "display -p \"#{?__RMUX_SESSION_CREATED,created new session:,",
+                    "#{?__RMUX_SESSION_UPDATED,updated session:,",
+                    "no changes to existing session:}} ",
+                    session_name,
+                    "\"",
                 ]
                 .join(""),
             );
@@ -1098,8 +982,10 @@ mod edit {
     }
 
     pub fn check_supported_extension(extension: &str) -> Result<(), Box<dyn error::Error>> {
+        let extension = extension.to_lowercase();
+
         ensure!(
-            FILE_EXTENSIONS.contains(&extension.to_lowercase().as_str()),
+            FILE_EXTENSIONS.contains(&extension.as_str()),
             UnsupportedFileExtension { extension }
         );
 
