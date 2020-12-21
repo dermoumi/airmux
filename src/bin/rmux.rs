@@ -2,7 +2,9 @@ extern crate rmux;
 use rmux::config::Config;
 use rmux::*;
 
-use clap::{crate_description, crate_name, crate_version, load_yaml, App, ArgMatches};
+use clap::{
+    crate_description, crate_name, crate_version, App, AppSettings, Arg, ArgMatches, SubCommand,
+};
 use main_error::MainError;
 
 use std::error::Error;
@@ -13,13 +15,217 @@ pub const APP_VERSION: &str = crate_version!();
 pub const APP_DESCRIPTION: &str = crate_description!();
 
 fn main() -> Result<(), MainError> {
-    let arg_config = load_yaml!("app.yml");
-    let matches = App::from_yaml(&arg_config)
+    let app = App::new("rmux")
         .name(APP_NAME)
         .version(APP_VERSION)
         .about(APP_DESCRIPTION)
-        .get_matches();
+        .settings(&[
+            AppSettings::SubcommandRequired,
+            AppSettings::VersionlessSubcommands,
+            AppSettings::InferSubcommands,
+        ])
+        .arg(
+            Arg::with_name("config_dir")
+                .global(true)
+                .help("configuration directory to use")
+                .short("c")
+                .long("config-dir")
+                .value_name("DIR")
+                .env("RMUX_CONFIG"),
+        )
+        .subcommands(vec![
+            SubCommand::with_name("list")
+                .about("List all configured projects")
+                .alias("ls"),
+            SubCommand::with_name("start")
+                .about("Start a project as a tmux session")
+                .args(&[
+                    Arg::with_name("project_name")
+                        .help("name of the project")
+                        .value_name("PROJECT_NAME")
+                        .index(1),
+                    Arg::with_name("attach")
+                        .help("force attach the session")
+                        .short("a")
+                        .long("attach")
+                        .conflicts_with("no_attach"),
+                    Arg::with_name("no_attach")
+                        .help("don't automatically attach the session")
+                        .short("d")
+                        .long("no-attach"),
+                    Arg::with_name("verbose")
+                        .help("print a message if the session was created or updated")
+                        .short("V")
+                        .long("verbose"),
+                    Arg::with_name("args")
+                        .help("arguments to be passed as variables to the yaml file")
+                        .value_name("ARGUMENT")
+                        .multiple(true),
+                    Arg::with_name("tmux_command")
+                        .global(true)
+                        .help("tmux command to use")
+                        .short("t")
+                        .long("command")
+                        .value_name("COMMAND")
+                        .env("RMUX_COMMAND"),
+                ]),
+            SubCommand::with_name("debug")
+                .about("Print tmux source without actually running tmux")
+                .args(&[
+                    Arg::with_name("project_name")
+                        .help("name of the project")
+                        .value_name("PROJECT_NAME")
+                        .index(1),
+                    Arg::with_name("attach")
+                        .help("force attach the session (ignored)")
+                        .short("a")
+                        .long("attach")
+                        .conflicts_with("no_attach"),
+                    Arg::with_name("no_attach")
+                        .help("don't automatically attach the session (ignored)")
+                        .short("d")
+                        .long("no-attach"),
+                    Arg::with_name("verbose")
+                        .help("print a message if the session was created or updated")
+                        .short("V")
+                        .long("verbose"),
+                    Arg::with_name("args")
+                        .help("arguments to be passed as variables to the yaml file")
+                        .value_name("ARGUMENT")
+                        .multiple(true),
+                    Arg::with_name("tmux_command")
+                        .global(true)
+                        .help("tmux command to use")
+                        .short("t")
+                        .long("command")
+                        .value_name("COMMAND")
+                        .env("RMUX_COMMAND"),
+                ]),
+            SubCommand::with_name("kill")
+                .about("Kill tmux session that matches the project")
+                .args(&[
+                    Arg::with_name("project_name")
+                        .help("name of the project")
+                        .value_name("PROJECT_NAME")
+                        .index(1),
+                    Arg::with_name("args")
+                        .help("arguments to be passed as variables to the yaml file")
+                        .value_name("ARGUMENT")
+                        .multiple(true),
+                    Arg::with_name("tmux_command")
+                        .global(true)
+                        .help("tmux command to use")
+                        .short("t")
+                        .long("command")
+                        .value_name("COMMAND")
+                        .env("RMUX_COMMAND"),
+                ]),
+            SubCommand::with_name("edit")
+                .about("Create or edit a project")
+                .alias("new")
+                .args(&[
+                    Arg::with_name("project_name")
+                        .help("name of the project")
+                        .value_name("PROJECT_NAME")
+                        .index(1),
+                    Arg::with_name("extension")
+                        .help("the extension to use for the project file (yml|yaml|json)")
+                        .short("e")
+                        .long("ext")
+                        .value_name("FILE_EXT")
+                        .possible_values(&["yml", "yaml", "json"])
+                        .case_insensitive(true),
+                    Arg::with_name("editor")
+                        .help("the editor to use")
+                        .short("E")
+                        .long("editor")
+                        .required(true)
+                        .value_name("EDITOR")
+                        .env("EDITOR"),
+                    Arg::with_name("no_check")
+                        .help("do not check the project file")
+                        .short("C")
+                        .long("no-check"),
+                    Arg::with_name("args")
+                        .help("arguments to be passed as variables to the yaml file when checking")
+                        .value_name("ARGUMENT")
+                        .multiple(true),
+                    Arg::with_name("tmux_command")
+                        .global(true)
+                        .help("tmux command to use")
+                        .short("t")
+                        .long("command")
+                        .value_name("COMMAND")
+                        .env("RMUX_COMMAND"),
+                ]),
+            SubCommand::with_name("remove")
+                .about("Remove a project (does not affect loaded tmux sessions)")
+                .aliases(&["rm", "delete"])
+                .args(&[
+                    Arg::with_name("project_name")
+                        .help("name of the project")
+                        .value_name("PROJECT_NAME")
+                        .index(1),
+                    Arg::with_name("no_input")
+                        .help("do not prompt for confirmation")
+                        .short("y")
+                        .long("no-input"),
+                ]),
+            SubCommand::with_name("freeze")
+                .about("Save current tmux session as a project file (commands not included)")
+                .args(&[
+                    Arg::with_name("stdout")
+                        .help("print the project file to stdout instead")
+                        .short("s")
+                        .long("stdout")
+                        .conflicts_with_all(&[
+                            "project_name",
+                            "editor",
+                            "no_input",
+                            "no_check",
+                            "args",
+                        ]),
+                    Arg::with_name("project_name")
+                        .help("name of the project")
+                        .value_name("PROJECT_NAME")
+                        .index(1),
+                    Arg::with_name("extension")
+                        .help("the extension to use for the project file (yml|yaml|json)")
+                        .short("e")
+                        .long("ext")
+                        .value_name("FILE_EXT")
+                        .possible_values(&["yml", "yaml", "json"])
+                        .case_insensitive(true),
+                    Arg::with_name("no_input")
+                        .help("do not prompt for confirmation")
+                        .short("y")
+                        .long("no-input"),
+                    Arg::with_name("editor")
+                        .help("the editor to use")
+                        .short("E")
+                        .long("editor")
+                        .required(true)
+                        .value_name("EDITOR")
+                        .env("EDITOR"),
+                    Arg::with_name("no_check")
+                        .help("do not check the project file")
+                        .short("C")
+                        .long("no-check"),
+                    Arg::with_name("args")
+                        .help("arguments to be passed as variables to the yaml file when checking")
+                        .value_name("ARGUMENT")
+                        .multiple(true),
+                    Arg::with_name("tmux_command")
+                        .global(true)
+                        .help("tmux command to use")
+                        .short("t")
+                        .long("command")
+                        .value_name("COMMAND")
+                        .env("RMUX_COMMAND"),
+                ]),
+        ]);
 
+    let matches = app.get_matches();
     match matches.subcommand() {
         ("start", Some(sub_matches)) => command_start(sub_matches),
         ("debug", Some(sub_matches)) => command_debug(sub_matches),
