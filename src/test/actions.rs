@@ -58,7 +58,7 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
         Some(project_name),
         Some("yml"),
         TEST_EDITOR_BIN,
-        false,
+        true,
         &[],
     );
 
@@ -86,7 +86,7 @@ fn edit_project_succeeds_when_project_file_exists() {
         Some(project_name),
         Some("yml"),
         TEST_EDITOR_BIN,
-        false,
+        true,
         &[],
     );
 
@@ -111,7 +111,7 @@ fn edit_project_creates_sub_directories_as_needed() {
         Some(project_name),
         Some("yml"),
         TEST_EDITOR_BIN,
-        false,
+        true,
         &[],
     )
     .unwrap();
@@ -213,7 +213,7 @@ fn edit_project_creates_file_locally() {
         None,
         Some(extension),
         TEST_EDITOR_BIN,
-        false,
+        true,
         &[],
     )
     .unwrap();
