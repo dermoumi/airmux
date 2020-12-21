@@ -5,7 +5,6 @@ use crate::pane_split::PaneSplit;
 use crate::project::Project;
 use crate::startup_window::StartupWindow;
 
-use dialoguer::Confirm;
 use mkdirp::mkdirp;
 use shell_words::{join, quote};
 use shellexpand::env_with_context;
@@ -195,14 +194,10 @@ pub fn remove_project(
     ensure!(project_file.is_file(), ProjectDoesNotExist { project_name });
 
     if !no_input
-        && !Confirm::new()
-            .with_prompt(format!(
-                "Are you sure you want to remove {:?}?",
-                project_name
-            ))
-            .default(false)
-            .show_default(true)
-            .interact()?
+        && !utils::prompt_confirmation(
+            &format!("Are you sure you want to remove {:?}?", project_name),
+            false,
+        )?
     {
         println!("Aborted.");
         return Ok(());
@@ -268,14 +263,13 @@ pub fn freeze_project(
 
     if project_file.exists()
         && !no_input
-        && !Confirm::new()
-            .with_prompt(format!(
+        && !utils::prompt_confirmation(
+            &format!(
                 "Project {:?} already exists, are you sure you want to override it?",
                 project_name
-            ))
-            .default(false)
-            .show_default(true)
-            .interact()?
+            ),
+            false,
+        )?
     {
         println!("Aborted.");
         return Ok(());
@@ -419,21 +413,16 @@ mod source {
         let mut source_commands = Vec::new();
 
         // Clean up potentially lingering tmux env vars
-        source_commands.push(join(&["set-environment", "-gu", "__RMUX_SESSION_CREATED"]));
-        source_commands.push(join(&["set-environment", "-gu", "__RMUX_SESSION_UPDATED"]));
+        source_commands.push(String::from("setenv -gu __RMUX_SESSION_CREATED"));
+        source_commands.push(String::from("setenv -gu __RMUX_SESSION_UPDATED"));
 
         // Assume that the tmux session will be freshly attached until proven otherwise
-        source_commands.push(join(&[
-            "set-environment",
-            "-g",
-            "__RMUX_SESSION_ATTACHED",
-            "1",
-        ]));
+        source_commands.push(String::from("setenv -g __RMUX_SESSION_ATTACHED 1"));
 
         // on_start commands
         if !project.on_start.is_empty() {
             source_commands.push(join(&[
-                "run-shell",
+                "run",
                 &project.on_start.join(";").replace("__TMUX__", tmux_command),
             ]));
         }
@@ -442,18 +431,18 @@ mod source {
         {
             let if_command = format!(
                 "! {} | {}",
-                project.tmux(&["list-sessions", "-F", "##S"])?,
+                project.tmux(&["ls", "-F", "##S"])?,
                 join(&["grep", "-Fx", session_name]),
             );
 
             let mut commands = vec![];
 
             // Create new session
-            commands.push(join(&["new-session", "-s", session_name, "-d"]));
+            commands.push(join(&["new", "-s", session_name, "-d"]));
 
             // Move the first window away temporarily
             commands.push(join(&[
-                "move-window",
+                "movew",
                 "-s",
                 &format!("{}:^", session_name),
                 "-t",
@@ -463,7 +452,7 @@ mod source {
             // on_first_start commands
             if !project.on_first_start.is_empty() {
                 commands.push(join(&[
-                    "run-shell",
+                    "run",
                     &project
                         .on_first_start
                         .join(";")
@@ -475,7 +464,7 @@ mod source {
             // on_exit commands
             if !project.on_exit.is_empty() {
                 let run_shell_command = join(&[
-                    "run-shell",
+                    "run",
                     &project.on_exit.join(";").replace("__TMUX__", tmux_command),
                 ]);
 
@@ -505,16 +494,16 @@ mod source {
 
                 let if_command = format!(
                     "! {} | {}",
-                    project.tmux(&["list-sessions", "-F", "####S"])?,
+                    project.tmux(&["ls", "-F", "####S"])?,
                     join(&["grep", "-Fx", session_name]),
                 );
 
                 let run_shell_command = join(&[
-                    "run-shell",
+                    "run",
                     &command_list.join(";").replace("__TMUX__", tmux_command),
                 ]);
 
-                let hook_command = join(&["if-shell", &if_command, &run_shell_command]);
+                let hook_command = join(&["if", &if_command, &run_shell_command]);
 
                 let set_hook_command = project.tmux(&[
                     "set-hook",
@@ -524,30 +513,29 @@ mod source {
                 ])?;
 
                 let run_shell_set_hook_command =
-                    join(&["run-shell", "-t", session_name, &set_hook_command]);
+                    join(&["run", "-t", session_name, &set_hook_command]);
 
-                commands.push(vec!["set -g exit-empty off", &run_shell_set_hook_command].join(";"))
+                commands.push(String::from("set -g exit-empty off"));
+                commands.push(run_shell_set_hook_command);
             }
 
-            let run_shell_command = vec![
-                // Set whether the session was created or not
-                String::from("set-environment -g __RMUX_SESSION_CREATED 1"),
-                // Unset the session attached variable
-                String::from("set-environment -gu __RMUX_SESSION_ATTACHED"),
-            ]
-            .join(";");
+            // Set whether the session was created or not
+            commands.push(String::from("setenv -g __RMUX_SESSION_CREATED 1"));
 
-            source_commands.push(join(&["if-shell", &if_command, &run_shell_command]));
+            // Unset the session attached variable
+            commands.push(String::from("setenv -gu __RMUX_SESSION_ATTACHED"));
+
+            source_commands.push(join(&["if", &if_command, &commands.join(";")]));
         }
 
         // on_restart commands
         if !project.on_restart.is_empty() {
             source_commands.push(join(&[
-                "if-shell",
+                "if",
                 "-F",
                 "#{__RMUX_SESSION_ATTACHED}",
                 &join(&[
-                    "run-shell",
+                    "run",
                     &project
                         .on_restart
                         .join(";")
@@ -576,11 +564,11 @@ mod source {
 
             let if_command = format!(
                 "! {} | {}",
-                project.tmux(&["list-windows", "-t", session_name, "-F", "##I",])?,
+                project.tmux(&["lsw", "-t", session_name, "-F", "##I",])?,
                 join(&["grep", "-Fx", &window_tmux_index.to_string()])
             );
 
-            let mut new_window_command = vec!["new-window", "-d", "-t", target_window];
+            let mut new_window_command = vec!["neww", "-d", "-t", target_window];
 
             let mut found_working_dir = false;
             let mut working_dir = String::new();
@@ -626,13 +614,13 @@ mod source {
             // Rename the window (if a name is set)
             // Renaming is a separate step so that we could update existing windows
             if let Some(window_name) = &window.name {
-                window_commands.push(join(&["rename-window", "-t", target_window, window_name]));
+                window_commands.push(join(&["renamew", "-t", target_window, window_name]));
             }
 
             // Window on_create commands
             if !window.on_create.is_empty() {
                 window_commands.push(join(&[
-                    "run-shell",
+                    "run",
                     &window
                         .on_create
                         .join(";")
@@ -652,7 +640,7 @@ mod source {
                 if pane_index > 0 {
                     // Split direction (defaults to horizontal)
                     let mut split_command = vec![
-                        "split-window",
+                        "splitw",
                         match &pane.split {
                             Some(split) if *split == PaneSplit::Vertical => "-v",
                             _ => "-h",
@@ -696,23 +684,16 @@ mod source {
                     ]);
 
                     // Create pane
-                    window_commands.push(join(&["run-shell", &project.tmux(&split_command)?]));
+                    window_commands.push(join(&["run", &project.tmux(&split_command)?]));
                 }
 
                 // Set real tmux pane index as a __RMUX_PANE_idx environment
                 // Allows us to reference tmux panes with their project order
                 window_commands.push(join(&[
-                    "run-shell",
+                    "run",
                     "-t",
                     target_window,
-                    &project.tmux(&[
-                        "set-environment",
-                        "-t",
-                        session_name,
-                        "-g",
-                        target_pane,
-                        "#D",
-                    ])?,
+                    &project.tmux(&["setenv", "-t", session_name, "-g", target_pane, "#D"])?,
                 ]));
 
                 // project and window's on_pane_create
@@ -725,7 +706,7 @@ mod source {
                     .chain(pane.on_create.iter().cloned())
                     .collect();
                 window_commands.push(join(&[
-                    "run-shell",
+                    "run",
                     &on_create_commands
                         .join(";")
                         .replace("__TMUX__", tmux_command)
@@ -737,16 +718,14 @@ mod source {
                 // project and window's pane_commands
                 // plus pane commands
                 window_commands.push(join(&[
-                    "run-shell",
+                    "run",
                     &project
                         .pane_commands
                         .iter()
                         .chain(window.pane_commands.iter())
                         .chain(pane.commands.iter())
                         .filter(|command| !command.is_empty())
-                        .map(|command| {
-                            project.tmux(&["send-keys", "-t", target_pane, command, "C-m"])
-                        })
+                        .map(|command| project.tmux(&["send", "-t", target_pane, command, "C-m"]))
                         .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
                         .join(";"),
                 ]));
@@ -761,7 +740,7 @@ mod source {
                     .chain(pane.post_create.iter().cloned())
                     .collect();
                 window_commands.push(join(&[
-                    "run-shell",
+                    "run",
                     &post_pane_commands
                         .join(";")
                         .replace("__TMUX__", tmux_command)
@@ -773,8 +752,8 @@ mod source {
                 // pane's clear
                 if pane.clear {
                     window_commands.push(join(&[
-                        "run-shell",
-                        &project.tmux(&["send-keys", "-t", target_pane, "C-l"])?,
+                        "run",
+                        &project.tmux(&["send", "-t", target_pane, "C-l"])?,
                     ]));
                 }
             }
@@ -786,7 +765,7 @@ mod source {
 
             // Clean up panes index env vars
             window_commands.push(join(&[
-                "run-shell",
+                "run",
                 &window
                     .panes
                     .iter()
@@ -794,23 +773,20 @@ mod source {
                     .map(|(pane_index, _)| {
                         let target_pane_index = pane_index + project.pane_base_index;
                         let rmux_pane = format!("__RMUX_PANE_{}", target_pane_index);
-                        project.tmux(&["set-environment", "-gu", &rmux_pane])
+                        project.tmux(&["setenv", "-gu", &rmux_pane])
                     })
                     .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
                     .join(";"),
             ]));
 
             // Select first pane
-            window_commands.push(join(&[
-                "select-pane",
-                "-t",
-                &format!("{}.{}", target_window, project.pane_base_index),
-            ]));
+            let target_pane = format!("{}.{}", target_window, project.pane_base_index);
+            window_commands.push(join(&["selectp", "-t", &target_pane]));
 
             // window post_create commands
             if !window.post_create.is_empty() {
                 window_commands.push(join(&[
-                    "run-shell",
+                    "run",
                     &window
                         .post_create
                         .join(";")
@@ -821,27 +797,22 @@ mod source {
             }
 
             // Flag session as updated
-            window_commands.push(join(&[
-                "set-environment",
-                "-g",
-                "__RMUX_SESSION_UPDATED",
-                "1",
-            ]));
+            window_commands.push(String::from("setenv -g __RMUX_SESSION_UPDATED 1"));
 
-            source_commands.push(join(&["if-shell", &if_command, &window_commands.join(";")]));
+            source_commands.push(join(&["if", &if_command, &window_commands.join(";")]));
         }
 
         // Post-window creation routing for when the session is freshly created
         source_commands.push(join(&[
-            "if-shell",
+            "if",
             "-F",
             "#{__RMUX_SESSION_CREATED}",
             &vec![
                 // Remove the original window
-                join(&["kill-window", "-t", &format!("{}:999999", session_name)]),
+                join(&["killw", "-t", &format!("{}:999999", session_name)]),
                 // Set startup window
                 join(&[
-                    "select-window",
+                    "selectw",
                     "-t",
                     &match &project.startup_window {
                         StartupWindow::Index(startup_window) => {
@@ -855,7 +826,7 @@ mod source {
                 ]),
                 // Set startup pane
                 join(&[
-                    "select-pane",
+                    "selectp",
                     "-t",
                     &match &project.startup_pane {
                         None => project.pane_base_index,
@@ -870,7 +841,7 @@ mod source {
         // post_create commands
         if !project.post_create.is_empty() {
             source_commands.push(join(&[
-                "run-shell",
+                "run",
                 &project
                     .post_create
                     .join(";")
@@ -881,21 +852,17 @@ mod source {
 
         // Show indicator message
         if verbose {
-            source_commands.push(
-                vec![
-                    "display -p \"#{?__RMUX_SESSION_CREATED,created new session:,",
-                    "#{?__RMUX_SESSION_UPDATED,updated session:,",
-                    "no changes to existing session:}} ",
-                    session_name,
-                    "\"",
-                ]
-                .join(""),
-            );
+            source_commands.push(format!(
+                "display -p '#{{?__RMUX_SESSION_CREATED,created new session:, \
+                    #{{?__RMUX_SESSION_UPDATED,updated session:, \
+                    no changes to existing session:}}}} {} '",
+                session_name,
+            ));
         }
 
         // Clear variables
-        source_commands.push(join(&["set-environment", "-gu", "__RMUX_SESSION_CREATED"]));
-        source_commands.push(join(&["set-environment", "-gu", "__RMUX_SESSION_UPDATED"]));
+        source_commands.push(String::from("setenv -gu __RMUX_SESSION_CREATED"));
+        source_commands.push(String::from("setenv -gu __RMUX_SESSION_UPDATED"));
 
         Ok(source_commands.join(";"))
     }
@@ -908,7 +875,7 @@ mod source {
         pub fn new(project: &'a Project) -> Result<TmuxDummySession, Box<dyn error::Error>> {
             // Create dummy tmux session to make sure the tmux server is up and running
             let (tmux_command, tmux_args) =
-                project.tmux_command(&["new-session", "-s", "__rmux_dummy_session_", "-d"])?;
+                project.tmux_command(&["new", "-s", "__rmux_dummy_session_", "-d"])?;
 
             let _ = Command::new(tmux_command)
                 .args(tmux_args)
@@ -1125,8 +1092,7 @@ mod freeze {
         let mut window_most_used_working_dir = PathBuf::new();
         let mut window_most_used_working_dir_count = 0;
 
-        let window_ids =
-            freeze::get_tmux_list_values(config, "list-windows", "window_id", &session_id)?;
+        let window_ids = freeze::get_tmux_list_values(config, "lsw", "window_id", &session_id)?;
         for window_id in &window_ids {
             let mut window = Window {
                 panes: vec![],

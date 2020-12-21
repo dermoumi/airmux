@@ -1,3 +1,4 @@
+use dialoguer::Confirm;
 use shell_words::split;
 use snafu::{ensure, Snafu};
 use std::error;
@@ -60,6 +61,14 @@ where
     T: Default + PartialEq,
 {
     t == &T::default()
+}
+
+pub fn prompt_confirmation(message: &str, default: bool) -> Result<bool, Box<dyn error::Error>> {
+    Ok(Confirm::new()
+        .with_prompt(message)
+        .default(default)
+        .show_default(true)
+        .interact()?)
 }
 
 #[cfg(test)]
