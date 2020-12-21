@@ -12,7 +12,6 @@ use serde::{de, Deserialize, Serialize};
 use shell_words::{join, split};
 
 use std::error::Error;
-use std::ffi::OsString;
 use std::iter;
 use std::path::PathBuf;
 
@@ -52,9 +51,9 @@ impl Project {
         }
 
         if let Some(tmux_command) = &config.tmux_command {
-            project.tmux_command = Some(tmux_command.to_string_lossy().into());
+            project.tmux_command = Some(tmux_command.to_owned());
         } else if project.tmux_command.is_none() {
-            project.tmux_command = Some("tmux".into());
+            project.tmux_command = Some(String::from("tmux"));
         }
 
         project
@@ -116,52 +115,41 @@ impl Project {
     // Separates tmux_command into the command itself + an array of arguments
     // The arguments are then merged with the passed arguments
     // Also appends tmux_socket and tmux_options as arguments while at it
-    pub fn tmux_command(
-        &self,
-        mut args: Vec<OsString>,
-    ) -> Result<(OsString, Vec<OsString>), Box<dyn Error>> {
-        let command = OsString::from(self.tmux_command.as_ref().ok_or("tmux command not set")?);
+    pub fn tmux_command(&self, args: &[&str]) -> Result<(String, Vec<String>), Box<dyn Error>> {
+        let command = self.tmux_command.as_ref().ok_or("tmux command not set")?;
+
+        let mut full_args = vec![];
 
         // Build tmux_socket arguments
-        let socket_args = match &self.tmux_socket {
-            None => vec![],
-            Some(tmux_socket) => vec![OsString::from("-L"), OsString::from(tmux_socket)],
-        };
+        if let Some(tmux_socket) = &self.tmux_socket {
+            full_args.extend_from_slice(&["-L", tmux_socket]);
+        }
 
         // Convert tmux_options ot OsString
-        let mut extra_args = match &self.tmux_options {
-            None => vec![],
-            Some(tmux_options) => split(&tmux_options)?
-                .into_iter()
-                .map(OsString::from)
-                .collect(),
-        };
+        let tmux_options_split;
+        if let Some(tmux_options) = &self.tmux_options {
+            tmux_options_split = split(tmux_options)?;
+            let mut tmux_options_split: Vec<&str> =
+                tmux_options_split.iter().map(|x| x.as_str()).collect();
+            full_args.append(&mut tmux_options_split);
+        }
 
-        // Append all args together
-        let mut full_args = socket_args;
-        full_args.append(&mut extra_args);
-        full_args.append(&mut args);
+        full_args.extend_from_slice(args);
 
         // Use utiliy to split command and append args to the split arguments
         parse_command(&command, &full_args)
     }
 
     // Sanitizes tmux_command for use in the template file
-    pub fn tmux<I, S>(&self, args: I) -> Result<String, Box<dyn Error>>
+    pub fn tmux<'a, I, S>(&self, args: I) -> Result<String, Box<dyn Error>>
     where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        I: IntoIterator<Item = &'a S>,
+        S: AsRef<str> + 'a,
     {
-        let (command, args) = self.tmux_command(
-            args.into_iter()
-                .map(|x| OsString::from(x.as_ref()))
-                .collect::<Vec<OsString>>(),
-        )?;
+        let args: Vec<&str> = args.into_iter().map(AsRef::as_ref).collect();
+        let (command, args) = self.tmux_command(&args)?;
 
-        Ok(join(
-            iter::once(String::from(command.to_string_lossy()))
-                .chain(args.into_iter().map(|s| String::from(s.to_string_lossy()))),
-        ))
+        Ok(join(iter::once(command).chain(args.into_iter())))
     }
 
     fn default_window_base_index() -> usize {
