@@ -27,10 +27,11 @@ impl Pane {
         // Make sure working_dir exists and is a directory
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
-                Err(format!(
+                return Err(format!(
                     "pane working_dir {:?} is not a directory or does not exist",
                     path
-                ))?;
+                )
+                .into());
             }
         }
 
@@ -192,24 +193,24 @@ impl<'de> Visitor<'de> for PaneVisitor {
             match key {
                 None => {
                     if !first_entry {
-                        Err(de::Error::custom(
+                        return Err(de::Error::custom(
                             "null name can only be set as first element of the map",
-                        ))?;
+                        ));
                     }
 
                     match val {
                         PaneOption::None => {}
                         PaneOption::Bool(val) => {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "invalid value for pane: {:?}",
                                 val
-                            )))?;
+                            )));
                         }
                         PaneOption::Number(val) => {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "invalid value for pane: {:?}",
                                 val
-                            )))?;
+                            )));
                         }
                         PaneOption::String(string) => pane.commands = vec![process_command(string)],
                         PaneOption::CommandList(commands) => {
@@ -251,10 +252,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "commands" | "command" => pane.commands = vec![],
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "pane field {:?} cannot be null",
                                     key
-                                )))?;
+                                )));
                             }
 
                             pane.name = Some(key);
@@ -263,10 +264,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     PaneOption::Bool(val) => match key.as_str() {
                         "clear" => pane.clear = val,
                         _ => {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "pane field {:?} cannot be a boolean",
                                 key
-                            )))?;
+                            )));
                         }
                     },
                     PaneOption::Number(val) => match key.as_str() {
@@ -278,10 +279,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "split_size" => pane.split_size = Some(val.to_string()),
                         "clear" => pane.clear = val != 0,
                         _ => {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "pane field {:?} cannot be a number",
                                 key
-                            )))?;
+                            )));
                         }
                     },
                     PaneOption::String(val) => match key.as_str() {
@@ -297,10 +298,13 @@ impl<'de> Visitor<'de> for PaneVisitor {
                                 s if ["h", "horizontal"].contains(&s.to_lowercase().as_str()) => {
                                     PaneSplit::Horizontal
                                 }
-                                _ => Err(de::Error::custom(format!(
-                                    "expected split value {:?} to match v|h|vertical|horizontal",
-                                    val
-                                )))?,
+                                _ => {
+                                    let err = format!(
+                                        "expected split value {:?} to match v|h|vertical|horizontal",
+                                        val
+                                    );
+                                    return Err(de::Error::custom(err));
+                                }
                             })
                         }
                         "split_size" => pane.split_size = Some(val),
@@ -309,10 +313,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "commands" | "command" => pane.commands = vec![process_command(val)],
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "pane field {:?} cannot be a string",
                                     key
-                                )))?;
+                                )));
                             }
 
                             pane.name = Some(key);
@@ -325,10 +329,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "commands" | "command" => pane.commands = process_command_list(commands),
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "pane field {:?} cannot be a command list",
                                     key
-                                )))?;
+                                )));
                             }
 
                             pane.name = Some(key);
@@ -337,10 +341,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     },
                     PaneOption::Definition(def) => {
                         if !first_entry {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "pane field {:?} cannot be a pane definition",
                                 key
-                            )))?
+                            )));
                         }
 
                         pane.name = Some(key);
@@ -355,10 +359,10 @@ impl<'de> Visitor<'de> for PaneVisitor {
                     }
                     PaneOption::DefinitionWithName(def) => {
                         if !first_entry {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "pane field {:?} cannot be a pane definition",
                                 key
-                            )))?
+                            )));
                         }
 
                         pane.name = def.name;

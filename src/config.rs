@@ -6,7 +6,6 @@ use mkdirp::mkdirp;
 use snafu::{ensure, Snafu};
 
 use std::error;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Snafu)]
@@ -18,13 +17,13 @@ pub enum Error {
     #[snafu(display("tmux command cannot be empty"))]
     TmuxCommandEmpty {},
     #[snafu(display("config-dir {:?} should be a directory", path))]
-    ConfigDirIsNotADirectory { path: OsString },
+    ConfigDirIsNotADirectory { path: PathBuf },
 }
 
 pub struct Config {
     pub app_name: &'static str,
     pub app_author: &'static str,
-    pub tmux_command: Option<OsString>,
+    pub tmux_command: Option<String>,
     pub config_dir: Option<PathBuf>,
 }
 
@@ -34,8 +33,8 @@ impl Config {
         app_author: &'static str,
         matches: &ArgMatches,
     ) -> Config {
-        let tmux_command = matches.value_of_os("tmux_command").map(|x| x.into());
-        let config_dir = matches.value_of_os("config_dir").map(|x| x.into());
+        let tmux_command = matches.value_of_lossy("tmux_command").map(String::from);
+        let config_dir = matches.value_of_os("config_dir").map(PathBuf::from);
 
         Config {
             app_name,
@@ -59,10 +58,10 @@ impl Config {
         Ok(self)
     }
 
-    pub fn get_config_dir<P: AsRef<Path>>(
-        &self,
-        sub_path: P,
-    ) -> Result<PathBuf, Box<dyn error::Error>> {
+    pub fn get_config_dir<P>(&self, sub_path: P) -> Result<PathBuf, Box<dyn error::Error>>
+    where
+        P: AsRef<Path>,
+    {
         let path;
         if let Some(dir) = &self.config_dir {
             path = PathBuf::from(dir);
@@ -82,23 +81,23 @@ impl Config {
         Ok(path)
     }
 
-    pub fn get_projects_dir<P: AsRef<Path>>(
-        &self,
-        sub_path: P,
-    ) -> Result<PathBuf, Box<dyn error::Error>> {
+    pub fn get_projects_dir<P>(&self, sub_path: P) -> Result<PathBuf, Box<dyn error::Error>>
+    where
+        P: AsRef<Path>,
+    {
         self.get_config_dir(sub_path)
     }
 
     pub fn get_tmux_command(
         &self,
-        args: Vec<OsString>,
-    ) -> Result<(OsString, Vec<OsString>), Box<dyn error::Error>> {
-        let command = match &self.tmux_command {
-            Some(cmd) => cmd.clone(),
-            None => OsString::from("tmux"),
-        };
+        args: &[&str],
+    ) -> Result<(String, Vec<String>), Box<dyn error::Error>> {
+        let command = self
+            .tmux_command
+            .to_owned()
+            .unwrap_or_else(|| String::from("tmux"));
 
-        utils::parse_command(command.as_os_str(), &args)
+        utils::parse_command(&command, args)
     }
 }
 

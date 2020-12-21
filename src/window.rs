@@ -35,16 +35,18 @@ impl Window {
             pane.check()?;
 
             if self.layout.is_some() && (pane.split.is_some() || pane.split_size.is_some()) {
-                Err("layout: cannot use layout when sub-panes use split or split_size")?;
+                return Err(
+                    "layout: cannot use layout when sub-panes use split or split_size".into(),
+                );
             }
 
             if let Some(split_from) = pane.split_from {
                 if split_from < base_pane_index || split_from >= base_pane_index + self.panes.len()
                 {
-                    Err(format!(
+                    return Err(format!(
                         "split_from: there is no pane with index {} (pane indexes always start at pane_base_index)",
                         split_from
-                    ))?;
+                    ).into());
                 }
             }
         }
@@ -52,10 +54,11 @@ impl Window {
         // Make sure working_dir exists and is a directory
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
-                Err(format!(
+                return Err(format!(
                     "window working_dir {:?} is not a directory or does not exist",
                     path
-                ))?;
+                )
+                .into());
             }
         }
 
@@ -110,10 +113,7 @@ impl From<String> for Window {
 impl From<Vec<String>> for Window {
     fn from(commands: Vec<String>) -> Self {
         Self {
-            panes: commands
-                .into_iter()
-                .map(|command| Pane::from(command))
-                .collect(),
+            panes: commands.into_iter().map(Pane::from).collect(),
             ..Self::default()
         }
     }
@@ -262,22 +262,16 @@ impl<'de> Visitor<'de> for WindowVisitor {
             match key {
                 None => {
                     if !first_entry {
-                        Err(de::Error::custom(
+                        return Err(de::Error::custom(
                             "null name can only be set as first element of the map",
-                        ))?;
+                        ));
                     }
 
                     match value {
                         WindowOption::None => {}
                         WindowOption::String(string) => window.panes = vec![Pane::from(string)],
                         WindowOption::CommandList(commands) => {
-                            window.panes = commands
-                                .into_iter()
-                                .map(|command| Pane {
-                                    commands: vec![command],
-                                    ..Pane::default()
-                                })
-                                .collect()
+                            window.panes = commands.into_iter().map(Pane::from).collect()
                         }
                         WindowOption::DefinitionWithName(def) => {
                             window.name = def.name;
@@ -316,10 +310,10 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "panes" | "pane" => window.panes = vec![Pane::default()],
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "window field {:?} cannot be null",
                                     key
-                                )))?;
+                                )));
                             }
 
                             window.name = Some(key);
@@ -341,10 +335,10 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "panes" | "pane" => window.panes = vec![Pane::from(val)],
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "window field {:?} cannot be a string",
                                     key
-                                )))?
+                                )));
                             }
 
                             window.name = Some(key);
@@ -362,32 +356,26 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.pane_commands = process_command_list(commands)
                         }
                         "panes" | "pane" => {
-                            window.panes = commands
-                                .into_iter()
-                                .map(|command| Pane::from(command))
-                                .collect()
+                            window.panes = commands.into_iter().map(Pane::from).collect()
                         }
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "window field {:?} cannot be a command list",
                                     key
-                                )))?
+                                )));
                             }
 
                             window.name = Some(key);
-                            window.panes = commands
-                                .into_iter()
-                                .map(|command| Pane::from(command))
-                                .collect()
+                            window.panes = commands.into_iter().map(Pane::from).collect()
                         }
                     },
                     WindowOption::Definition(def) => {
                         if !first_entry {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "window field {:?} cannot be a window definition",
                                 key
-                            )))?
+                            )));
                         }
 
                         window.name = Some(key);
@@ -402,10 +390,10 @@ impl<'de> Visitor<'de> for WindowVisitor {
                     }
                     WindowOption::DefinitionWithName(def) => {
                         if !first_entry {
-                            Err(de::Error::custom(format!(
+                            return Err(de::Error::custom(format!(
                                 "window field {:?} cannot be a window definition",
                                 key
-                            )))?
+                            )));
                         }
 
                         window.name = def.name;
@@ -422,10 +410,10 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "panes" | "pane" => window.panes = panes,
                         _ => {
                             if !first_entry {
-                                Err(de::Error::custom(format!(
+                                return Err(de::Error::custom(format!(
                                     "window field {:?} cannot be a pane list",
                                     key
-                                )))?
+                                )));
                             }
 
                             window.name = Some(key);

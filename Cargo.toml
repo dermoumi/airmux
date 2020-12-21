@@ -9,15 +9,13 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "2.33.3", features = ["yaml", "color"] }
+clap = { version = "2.33.3" }
 app_dirs = "1.2.1"
-yaml-rust = "0.3.5"
 mkdirp = "1.0.0"
 shell-words = "1.0.0"
 snafu = "0.6.9"
 main_error = "0.1.1"
-dialoguer = "0.7.1"
-tera = "1.5.0"
+console = "0.13.0"
 serde = { version = "1.0.117", features = ["derive"] }
 serde_json = "1.0.59"
 serde_yaml = "0.8.14"
