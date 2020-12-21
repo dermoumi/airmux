@@ -22,12 +22,13 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
       - run: >-
-          strip target/${{ matrix.target }}/rmux &&
-          mv target/${{ matrix.target }}/rmux target/${{ matrix.target }}/rmux-${{ matrix.target }}
+          strip target/${{ matrix.target }}/release/rmux &&
+          mv target/${{ matrix.target }}/release/rmux
+            target/${{ matrix.target }}/release/rmux-${{ matrix.target }}
       - uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/${{ matrix.target }}/rmux-${{ matrix.target }}
+            target/${{ matrix.target }}/release/rmux-${{ matrix.target }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -40,12 +41,13 @@ jobs:
           command: build
           args: --release --target x86_64-apple-darwin
       - run: >-
-          strip target/x86_64-apple-darwin/rmux &&
-          mv target/x86_64-apple-darwin/rmux target/x86_64-apple-darwin/rmux-x86_64-apple-darwin
+          strip target/x86_64-apple-darwin/release/rmux &&
+          mv target/x86_64-apple-darwin/release/rmux
+            target/x86_64-apple-darwin/release/rmux-x86_64-apple-darwin
       - uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/x86_64-apple-darwin/rmux-x86_64-apple-darwin
+            target/x86_64-apple-darwin/release/rmux-x86_64-apple-darwin
 
   build-windows:
     runs-on: windows-latest
@@ -55,7 +57,10 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-pc-windows-msvc
-      - run: ren target/x86_64-pc-windows-msvc/rmux.exe target/x86_64-pc-windows-msvc/rmux-x86_64-pc-windows-msvc.exe
+      - run: >-
+          ren
+            target/x86_64-pc-windows-msvc/release/rmux.exe
+            target/x86_64-pc-windows-msvc/release/rmux-x86_64-pc-windows-msvc.exe
       - uses: softprops/action-gh-release@v1
         with:
           files: |
