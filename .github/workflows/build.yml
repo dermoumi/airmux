@@ -22,13 +22,12 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
       - run: >-
-          strip target/${{ matrix.target }}/release/rmux &&
-          mv target/${{ matrix.target }}/release/rmux
-            target/${{ matrix.target }}/release/rmux-${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/rmux target/rmux-${{ matrix.target }}
+          && strip target/rmux-${{ matrix.target }}
       - uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/${{ matrix.target }}/release/rmux-${{ matrix.target }}
+            target/rmux-${{ matrix.target }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -41,13 +40,14 @@ jobs:
           command: build
           args: --release --target x86_64-apple-darwin
       - run: >-
-          strip target/x86_64-apple-darwin/release/rmux &&
-          mv target/x86_64-apple-darwin/release/rmux
-            target/x86_64-apple-darwin/release/rmux-x86_64-apple-darwin
+          mv target/x86_64-apple-darwin/release/rmux target/rmux-x86_64-apple-darwin
+          && strip target/rmux-x86_64-apple-darwin
       - uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/x86_64-apple-darwin/release/rmux-x86_64-apple-darwin
+            target/rmux-x86_64-apple-darwin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
     runs-on: windows-latest
@@ -58,10 +58,10 @@ jobs:
           command: build
           args: --release --target x86_64-pc-windows-msvc
       - run: >-
-          ren
-            target/x86_64-pc-windows-msvc/release/rmux.exe
-            target/x86_64-pc-windows-msvc/release/rmux-x86_64-pc-windows-msvc.exe
+          ren target/x86_64-pc-windows-msvc/release/rmux.exe target/rmux-x86_64-pc-windows-msvc.exe
       - uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/x86_64-pc-windows-msvc/rmux-x86_64-pc-windows-msvc.exe
+            target/rmux-x86_64-pc-windows-msvc.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
