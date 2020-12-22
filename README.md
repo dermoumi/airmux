@@ -91,7 +91,7 @@ on_create:
     --publish 15432:5432
     --env POSTGRES_PASSWORD=hunter2
     --volume $HOME/.postgresql:/var/lib/postgresql/13
-    postgresql:13 || docker start r-postgresql
+    postgres:13 || docker start r-postgresql
 
 # Stop dev redis and postgresql when the session is stopped
 on_stop: docker stop r-redis r-postgresql
