@@ -1,7 +1,13 @@
 use super::*;
 use std::os;
+use std::path;
 use std::path::PathBuf;
 use tempfile::tempdir;
+
+#[cfg(windows)]
+const TEST_EDITOR_BIN: &str = "cmd /c echo";
+#[cfg(unix)]
+const TEST_EDITOR_BIN: &str = "true";
 
 fn make_config(tmux_command: Option<&str>, config_dir: Option<PathBuf>) -> Config {
     Config {
@@ -51,8 +57,8 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
         &test_config,
         Some(project_name),
         Some("yml"),
-        "test",
-        false,
+        TEST_EDITOR_BIN,
+        true,
         &[],
     );
 
@@ -79,8 +85,8 @@ fn edit_project_succeeds_when_project_file_exists() {
         &test_config,
         Some(project_name),
         Some("yml"),
-        "test",
-        false,
+        TEST_EDITOR_BIN,
+        true,
         &[],
     );
 
@@ -104,8 +110,8 @@ fn edit_project_creates_sub_directories_as_needed() {
         &test_config,
         Some(project_name),
         Some("yml"),
-        "test",
-        false,
+        TEST_EDITOR_BIN,
+        true,
         &[],
     )
     .unwrap();
@@ -132,7 +138,7 @@ fn edit_project_fails_when_project_path_is_directory() {
         &test_config,
         Some(project_name),
         Some("yml"),
-        "test",
+        TEST_EDITOR_BIN,
         false,
         &[],
     );
@@ -154,7 +160,7 @@ fn edit_project_project_name_cannot_be_empty() {
         &test_config,
         Some(project_name),
         Some("yml"),
-        "test",
+        TEST_EDITOR_BIN,
         false,
         &[],
     );
@@ -177,7 +183,7 @@ fn edit_project_fails_if_extension_is_not_supported() {
         &test_config,
         Some(project_name),
         Some(unsupported_extension),
-        "test",
+        TEST_EDITOR_BIN,
         false,
         &[],
     );
@@ -202,7 +208,15 @@ fn edit_project_creates_file_locally() {
     let project_file = temp_local_dir.join(".rmux").with_extension(extension);
     assert!(!project_file.exists());
 
-    edit_project(&test_config, None, Some(extension), "test", false, &[]).unwrap();
+    edit_project(
+        &test_config,
+        None,
+        Some(extension),
+        TEST_EDITOR_BIN,
+        true,
+        &[],
+    )
+    .unwrap();
     assert!(project_file.exists());
 }
 
@@ -390,7 +404,7 @@ fn list_shows_projects_in_subdirectories() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = format!("subdir1/project{}", n);
+        let project_name = format!("subdir1{}project{}", path::MAIN_SEPARATOR, n);
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -400,7 +414,7 @@ fn list_shows_projects_in_subdirectories() {
         expected_project_list.push(project_name);
     }
     for n in 4..6 {
-        let project_name = format!("subdir2/project{}", n);
+        let project_name = format!("subdir2{}project{}", path::MAIN_SEPARATOR, n);
         mkdirp(temp_dir.join("subdir2")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -433,7 +447,7 @@ fn list_follows_symlinks() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = format!("subdir1/project{}", n);
+        let project_name = format!("subdir1{}project{}", path::MAIN_SEPARATOR, n);
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
         let project_path = temp_dir.join(&project_name);
@@ -443,7 +457,7 @@ fn list_follows_symlinks() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = format!("subdir2/project{}", n);
+        let project_name = format!("subdir2{}project{}", path::MAIN_SEPARATOR, n);
 
         expected_project_list.push(project_name);
     }
@@ -477,7 +491,7 @@ fn list_detects_symlink_loops() {
         expected_project_list.push(project_name);
     }
     for n in 2..4 {
-        let project_name = format!("subdir1/project{}", n);
+        let project_name = format!("subdir1{}project{}", path::MAIN_SEPARATOR, n);
         mkdirp(temp_dir.join("subdir1")).unwrap();
 
         let project_path = temp_dir.join(&project_name);

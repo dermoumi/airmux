@@ -20,8 +20,18 @@ fn parses_namespace() {
 
 #[test]
 fn parses_multilevel_namspaces() {
-    let expected_result = PathBuf::from("my/name/space");
-    let project_name = "my/name/space/project";
+    let expected_result = PathBuf::from(format!(
+        "my{}name{}space",
+        path::MAIN_SEPARATOR,
+        path::MAIN_SEPARATOR,
+    ));
+
+    let project_name = format!(
+        "my{}name{}space{}project",
+        path::MAIN_SEPARATOR,
+        path::MAIN_SEPARATOR,
+        path::MAIN_SEPARATOR,
+    );
 
     let result = get_project_namespace(&project_name).unwrap();
     assert_eq!(result, expected_result);
@@ -29,7 +39,7 @@ fn parses_multilevel_namspaces() {
 
 #[test]
 fn fails_when_project_name_has_a_trailing_slash() {
-    let name = "project/";
+    let name = format!("project{}", path::MAIN_SEPARATOR);
 
     let result = get_project_namespace(&name);
     assert!(result.is_err());
