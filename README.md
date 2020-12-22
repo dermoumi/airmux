@@ -1,4 +1,4 @@
-# Rmux
+# Airmux
 
 Just another tmux session manager. Tmux 3.0+ is required.
 
@@ -8,7 +8,7 @@ Just another tmux session manager. Tmux 3.0+ is required.
   - [Cargo install](#cargo-install)
   - [Manual installation](#manual-installation)
 - [Usage](#usage)
-  - [Example Rmux project:](#example-rmux-project)
+  - [Example Airmux project:](#example-airmux-project)
   - [Starting a session](#starting-a-session)
   - [Create and edit project files](#create-and-edit-project-files)
     - [Project definition](#project-definition)
@@ -32,34 +32,34 @@ Just another tmux session manager. Tmux 3.0+ is required.
 If you have `cargo` installed on your system:
 
 ```console
-$ cargo install rmux
+$ cargo install airmux
 ```
 
 ### Manual installation
 
 ```console
-$ RMUX_TARGET="x86_64-unknown-linux-gnu" # Check the list of available targets on the releases page
-$ curl -o rmux -fsSL "https://github.com/dermoumi/rmux/releases/latest/download/rmux-$RMUX_TARGET"
-$ chmod +x rmux
-$ sudo mv rmux /usr/local/bin/
+$ AIRMUX_TARGET="x86_64-unknown-linux-gnu" # Check the list of available targets on the releases page
+$ curl -o airmux -fsSL "https://github.com/dermoumi/airmux/releases/latest/download/airmux-$AIRMUX_TARGET"
+$ chmod +x airmux
+$ sudo mv airmux /usr/local/bin/
 ```
 
 You can check the list of available targets in the [releases page][releases_page].
 
-[releases_page]: https://github.com/dermoumi/rmux/releases
+[releases_page]: https://github.com/dermoumi/airmux/releases
 
 ## Usage
 
 ```
 USAGE:
-    rmux [OPTIONS] <SUBCOMMAND>
+    airmux [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
-    -c, --config-dir <DIR>    configuration directory to use [env: RMUX_CONFIG=]
+    -c, --config-dir <DIR>    configuration directory to use [env: AIRMUX_CONFIG=]
 
 SUBCOMMANDS:
     debug     Print tmux source without actually running tmux
@@ -72,7 +72,7 @@ SUBCOMMANDS:
     start     Start a project as a tmux session
 ```
 
-### Example Rmux project:
+### Example Airmux project:
 
 ```yaml
 # Set project working directory
@@ -119,7 +119,7 @@ windows:
 ### Starting a session
 
 ```console
-$ rmux start my_project [param1 [param2...]]
+$ airmux start my_project [param1 [param2...]]
 ```
 
 Parameters are accessible in the project file as `$1`, `$2`, etc...
@@ -129,14 +129,14 @@ Parameters are accessible in the project file as `$1`, `$2`, etc...
 Create or edit projects using:
 
 ```console
-$ rmux edit <my_project>
+$ airmux edit <my_project>
 ```
 
 The default editor (`$EDITOR`) is used to open the file.
 You can use the `--editor` option to specify which editor to use:
 
 ```console
-$ rmux edit --editor="code -w" my_project
+$ airmux edit --editor="code -w" my_project
 ```
 
 #### Project definition
@@ -147,7 +147,7 @@ All the fields are optional, but at least one is required.
 # Name of the session in tmux. Cannot contain a dot (.) or colon (:) (alias: name)
 session_name: <project name>
 
-# Tmux command to use. Can also be overritten by using `--command` when running rmux
+# Tmux command to use. Can also be overritten by using `--command` when running airmux
 tmux_command: tmux
 
 # Flags and options to pass to tmux every time it's executed
@@ -230,7 +230,7 @@ on_stop:
     - echo command4
 ```
 
-Note: Rmux will always remove `\r` characters and replace `\n` with a space character (` `),
+Note: Airmux will always remove `\r` characters and replace `\n` with a space character (` `),
 even if you don't use the correct yaml multiline syntax.
 
 All commands are executed regardless of the exit status of the previous command.
@@ -376,7 +376,7 @@ windows:
 
 This also means that whenever you need to write `$` you'll need to escape as `$$`.
 
-Furthermore, any extra values passed to `rmux start` or `rmux kill` are available as `$1`, `$2`, etc...
+Furthermore, any extra values passed to `airmux start` or `airmux kill` are available as `$1`, `$2`, etc...
 
 ```yaml
 windows:
@@ -385,21 +385,21 @@ windows:
 
 ```bash
 # pipenv run server will run at port 8080 instead of the default 8000
-$ rmux start my_project 8080
+$ airmux start my_project 8080
 ```
 
 ### Local project files
 
-Commands that accept a project name can be called without it to use a local `.rmux.(yml|yaml|json)` project file
+Commands that accept a project name can be called without it to use a local `.airmux.(yml|yaml|json)` project file
 instead.
 
-If no local project file exists, Rmux will look into each ancestor to the current working directory until it finds one.
-Otherwise, it will default to `.rmux.yml` on the current directory.
+If no local project file exists, Airmux will look into each ancestor to the current working directory until it finds one.
+Otherwise, it will default to `.airmux.yml` on the current directory.
 
 You can specify the extension of the local project file when creating it:
 
 ```console
-$ rmux edit --ext json
+$ airmux edit --ext json
 ```
 
 ### Other commands
@@ -407,40 +407,40 @@ $ rmux edit --ext json
 #### List all projects
 
 ```console
-$ rmux list
+$ airmux list
 ```
 
 #### Stop the session corresponding to a project
 
 ```console
-$ rmux kill my_project
+$ airmux kill my_project
 ```
 
 #### Delete a project
 
 ```console
-$ rmux remove my_project
+$ airmux remove my_project
 ```
 
 #### Debug session creation
 
 ```console
-$ rmux debug my_project
+$ airmux debug my_project
 ```
 
 Prints all the commands that are passed to `tmux source` to create the session, complete with hooks and everything.
 
-You can save the output and use it directly without passing through `rmux`.
+You can save the output and use it directly without passing through `airmux`.
 As long as the tmux server is already running. Also, it never attaches the session.
 
 ```console
-$ rmux debug my_project | tmux source
+$ airmux debug my_project | tmux source
 ```
 
 #### Save current session as a project
 
 ```console
-$ rmux freeze my_project
+$ airmux freeze my_project
 ```
 
 It will prompt you for confirmation before overriding an existing project, unless `--no-input` flag is passed.
@@ -448,5 +448,5 @@ It will prompt you for confirmation before overriding an existing project, unles
 You can also print the project file to stdout instead of opening a text editor:
 
 ```console
-$ rmux freeze --stdout
+$ airmux freeze --stdout
 ```

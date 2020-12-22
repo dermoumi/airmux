@@ -92,7 +92,7 @@ pub fn start_project(
 
         // Make sure to remove the dummy session before attaching,
         // Otherwise it'll pollute the session list the entire time we're attached
-        // Because rmux won't quit until `tmux attach-session` returns
+        // Because airmux won't quit until `tmux attach-session` returns
         drop(dummy_session);
 
         // Check tmux exit code
@@ -307,7 +307,7 @@ mod project {
         // Try to find a local project file in current directory and all ancestors
         let mut project_dir = env::current_dir()?;
         loop {
-            let project_file = project_dir.join(PathBuf::from(".rmux"));
+            let project_file = project_dir.join(PathBuf::from(".airmux"));
 
             // Try for each supported file extension
             for ext in FILE_EXTENSIONS {
@@ -329,7 +329,7 @@ mod project {
 
         // Fall back to local project file
         let project_dir = env::current_dir()?;
-        let project_file = project_dir.join(".rmux.yml");
+        let project_file = project_dir.join(".airmux.yml");
         let project_name = project_dir.file_name().map_or_else(String::new, |name| {
             // Remove dots and colons
             name.to_string_lossy().replace(&['.', ':'][..], "")
@@ -413,11 +413,11 @@ mod source {
         let mut source_commands = Vec::new();
 
         // Clean up potentially lingering tmux env vars
-        source_commands.push(String::from("setenv -gu __RMUX_SESSION_CREATED"));
-        source_commands.push(String::from("setenv -gu __RMUX_SESSION_UPDATED"));
+        source_commands.push(String::from("setenv -gu __AIRMUX_SESSION_CREATED"));
+        source_commands.push(String::from("setenv -gu __AIRMUX_SESSION_UPDATED"));
 
         // Assume that the tmux session will be freshly attached until proven otherwise
-        source_commands.push(String::from("setenv -g __RMUX_SESSION_ATTACHED 1"));
+        source_commands.push(String::from("setenv -g __AIRMUX_SESSION_ATTACHED 1"));
 
         // on_start commands
         if !project.on_start.is_empty() {
@@ -520,10 +520,10 @@ mod source {
             }
 
             // Set whether the session was created or not
-            commands.push(String::from("setenv -g __RMUX_SESSION_CREATED 1"));
+            commands.push(String::from("setenv -g __AIRMUX_SESSION_CREATED 1"));
 
             // Unset the session attached variable
-            commands.push(String::from("setenv -gu __RMUX_SESSION_ATTACHED"));
+            commands.push(String::from("setenv -gu __AIRMUX_SESSION_ATTACHED"));
 
             source_commands.push(join(&["if", &if_command, &commands.join(";")]));
         }
@@ -533,7 +533,7 @@ mod source {
             source_commands.push(join(&[
                 "if",
                 "-F",
-                "#{__RMUX_SESSION_ATTACHED}",
+                "#{__AIRMUX_SESSION_ATTACHED}",
                 &join(&[
                     "run",
                     &project
@@ -633,7 +633,7 @@ mod source {
             // Panes
             for (pane_index, pane) in window.panes.iter().enumerate() {
                 let target_pane_index = pane_index + project.pane_base_index;
-                let target_pane = &format!("#{{__RMUX_PANE_{}}}", target_pane_index);
+                let target_pane = &format!("#{{__AIRMUX_PANE_{}}}", target_pane_index);
                 let target_pane_quoted = &quote(target_pane);
 
                 // Create pane (first one is automatically created)
@@ -677,7 +677,7 @@ mod source {
                         match &pane.split_from {
                             None => target_window,
                             Some(split_from) => {
-                                split_from_target = format!("#{{__RMUX_PANE_{}}}", split_from);
+                                split_from_target = format!("#{{__AIRMUX_PANE_{}}}", split_from);
                                 &split_from_target
                             }
                         },
@@ -687,7 +687,7 @@ mod source {
                     window_commands.push(join(&["run", &project.tmux(&split_command)?]));
                 }
 
-                // Set real tmux pane index as a __RMUX_PANE_idx environment
+                // Set real tmux pane index as a __AIRMUX_PANE_idx environment
                 // Allows us to reference tmux panes with their project order
                 window_commands.push(join(&[
                     "run",
@@ -698,7 +698,7 @@ mod source {
                         "-t",
                         session_name,
                         "-g",
-                        &format!("__RMUX_PANE_{}", target_pane_index),
+                        &format!("__AIRMUX_PANE_{}", target_pane_index),
                         "#D",
                     ])?,
                 ]));
@@ -779,8 +779,8 @@ mod source {
                     .enumerate()
                     .map(|(pane_index, _)| {
                         let target_pane_index = pane_index + project.pane_base_index;
-                        let rmux_pane = format!("__RMUX_PANE_{}", target_pane_index);
-                        project.tmux(&["setenv", "-gu", &rmux_pane])
+                        let airmux_pane = format!("__AIRMUX_PANE_{}", target_pane_index);
+                        project.tmux(&["setenv", "-gu", &airmux_pane])
                     })
                     .collect::<Result<Vec<String>, Box<dyn error::Error>>>()?
                     .join(";"),
@@ -804,7 +804,7 @@ mod source {
             }
 
             // Flag session as updated
-            window_commands.push(String::from("setenv -g __RMUX_SESSION_UPDATED 1"));
+            window_commands.push(String::from("setenv -g __AIRMUX_SESSION_UPDATED 1"));
 
             source_commands.push(join(&["if", &if_command, &window_commands.join(";")]));
         }
@@ -813,7 +813,7 @@ mod source {
         source_commands.push(join(&[
             "if",
             "-F",
-            "#{__RMUX_SESSION_CREATED}",
+            "#{__AIRMUX_SESSION_CREATED}",
             &vec![
                 // Remove the original window
                 join(&["killw", "-t", &format!("{}:999999", session_name)]),
@@ -860,16 +860,16 @@ mod source {
         // Show indicator message
         if verbose {
             source_commands.push(format!(
-                "display -p '#{{?__RMUX_SESSION_CREATED,created new session:, \
-                    #{{?__RMUX_SESSION_UPDATED,updated session:, \
+                "display -p '#{{?__AIRMUX_SESSION_CREATED,created new session:, \
+                    #{{?__AIRMUX_SESSION_UPDATED,updated session:, \
                     no changes to existing session:}}}} {} '",
                 session_name,
             ));
         }
 
         // Clear variables
-        source_commands.push(String::from("setenv -gu __RMUX_SESSION_CREATED"));
-        source_commands.push(String::from("setenv -gu __RMUX_SESSION_UPDATED"));
+        source_commands.push(String::from("setenv -gu __AIRMUX_SESSION_CREATED"));
+        source_commands.push(String::from("setenv -gu __AIRMUX_SESSION_UPDATED"));
 
         Ok(source_commands.join(";"))
     }
@@ -882,7 +882,7 @@ mod source {
         pub fn new(project: &'a Project) -> Result<TmuxDummySession, Box<dyn error::Error>> {
             // Create dummy tmux session to make sure the tmux server is up and running
             let (tmux_command, tmux_args) =
-                project.tmux_command(&["new", "-s", "__rmux_dummy_session_", "-d"])?;
+                project.tmux_command(&["new", "-s", "__airmux_dummy_session_", "-d"])?;
 
             let _ = Command::new(tmux_command)
                 .args(tmux_args)
@@ -899,7 +899,7 @@ mod source {
             // Remove dummy session
             if let Ok((tmux_command, tmux_args)) =
                 self.project
-                    .tmux_command(&["kill-session", "-t", "__rmux_dummy_session_"])
+                    .tmux_command(&["kill-session", "-t", "__airmux_dummy_session_"])
             {
                 if let Ok(mut child) = Command::new(tmux_command).args(tmux_args).spawn() {
                     let _ = child.wait();
@@ -1142,9 +1142,10 @@ mod freeze {
                     .file_name()
                     .map_or_else(String::new, |s| s.to_string_lossy().to_string());
 
-                let process_name = env::current_exe()?
-                    .file_name()
-                    .map_or_else(|| String::from("rmux"), |n| n.to_string_lossy().to_string());
+                let process_name = env::current_exe()?.file_name().map_or_else(
+                    || String::from("airmux"),
+                    |n| n.to_string_lossy().to_string(),
+                );
 
                 if let Some(name) = &window_name {
                     if name == &pane_command || name == &pane_shell || name == &process_name {
