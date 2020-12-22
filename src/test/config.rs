@@ -29,7 +29,7 @@ fn from_args_matches_commands_correctly() {
     let app = App::new("test_app")
         .arg(Arg::with_name("tmux_command").short("t").takes_value(true))
         .arg(Arg::with_name("config_dir").short("c").takes_value(true));
-    let matches = app.get_matches_from(vec!["rmux", "-t", tmux_command, "-c", config_dir]);
+    let matches = app.get_matches_from(vec!["airmux", "-t", tmux_command, "-c", config_dir]);
 
     let test_config = Config::from_args(APP_NAME, APP_AUTHOR, &matches);
     assert_eq!(test_config.tmux_command, Some(tmux_command.into()));

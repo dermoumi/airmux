@@ -205,7 +205,7 @@ fn edit_project_creates_file_locally() {
     std::env::set_current_dir(temp_local_dir).unwrap();
 
     let extension = "json";
-    let project_file = temp_local_dir.join(".rmux").with_extension(extension);
+    let project_file = temp_local_dir.join(".airmux").with_extension(extension);
     assert!(!project_file.exists());
 
     edit_project(
@@ -335,7 +335,7 @@ fn remove_project_removes_local_project() {
     let temp_local_dir = temp_local_dir.path();
     std::env::set_current_dir(temp_local_dir).unwrap();
 
-    let project_file = temp_local_dir.join(".rmux");
+    let project_file = temp_local_dir.join(".airmux");
 
     for extension in FILE_EXTENSIONS {
         let project_file = project_file.with_extension(extension);

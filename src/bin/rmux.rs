@@ -1,6 +1,6 @@
-extern crate rmux;
-use rmux::config::Config;
-use rmux::*;
+extern crate airmux;
+use airmux::config::Config;
+use airmux::*;
 
 use clap::{
     crate_description, crate_name, crate_version, App, AppSettings, Arg, ArgMatches, SubCommand,
@@ -10,12 +10,12 @@ use main_error::MainError;
 use std::error::Error;
 
 pub const APP_NAME: &str = crate_name!();
-pub const APP_AUTHOR: &str = "rmux";
+pub const APP_AUTHOR: &str = "airmux";
 pub const APP_VERSION: &str = crate_version!();
 pub const APP_DESCRIPTION: &str = crate_description!();
 
 fn main() -> Result<(), MainError> {
-    let app = App::new("rmux")
+    let app = App::new("airmux")
         .name(APP_NAME)
         .version(APP_VERSION)
         .about(APP_DESCRIPTION)
@@ -31,7 +31,7 @@ fn main() -> Result<(), MainError> {
                 .short("c")
                 .long("config-dir")
                 .value_name("DIR")
-                .env("RMUX_CONFIG"),
+                .env("AIRMUX_CONFIG"),
         )
         .subcommands(vec![
             SubCommand::with_name("list")
@@ -67,7 +67,7 @@ fn main() -> Result<(), MainError> {
                         .short("t")
                         .long("command")
                         .value_name("COMMAND")
-                        .env("RMUX_COMMAND"),
+                        .env("AIRMUX_COMMAND"),
                 ]),
             SubCommand::with_name("debug")
                 .about("Print tmux source without actually running tmux")
@@ -99,7 +99,7 @@ fn main() -> Result<(), MainError> {
                         .short("t")
                         .long("command")
                         .value_name("COMMAND")
-                        .env("RMUX_COMMAND"),
+                        .env("AIRMUX_COMMAND"),
                 ]),
             SubCommand::with_name("kill")
                 .about("Kill tmux session that matches the project")
@@ -118,7 +118,7 @@ fn main() -> Result<(), MainError> {
                         .short("t")
                         .long("command")
                         .value_name("COMMAND")
-                        .env("RMUX_COMMAND"),
+                        .env("AIRMUX_COMMAND"),
                 ]),
             SubCommand::with_name("edit")
                 .about("Create or edit a project")
@@ -156,7 +156,7 @@ fn main() -> Result<(), MainError> {
                         .short("t")
                         .long("command")
                         .value_name("COMMAND")
-                        .env("RMUX_COMMAND"),
+                        .env("AIRMUX_COMMAND"),
                 ]),
             SubCommand::with_name("remove")
                 .about("Remove a project (does not affect loaded tmux sessions)")
@@ -221,7 +221,7 @@ fn main() -> Result<(), MainError> {
                         .short("t")
                         .long("command")
                         .value_name("COMMAND")
-                        .env("RMUX_COMMAND"),
+                        .env("AIRMUX_COMMAND"),
                 ]),
         ]);
 

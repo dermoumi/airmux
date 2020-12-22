@@ -1,11 +1,11 @@
 [package]
-name = "rmux"
+name = "airmux"
 version = "0.1.0"
 authors = ["Dermoumi S. <hi@sdrm.me>"]
 edition = "2018"
 description = "Just another tmux session manager"
 readme = "README.md"
-repository = "https://github.com/dermoumi/rmux"
+repository = "https://github.com/dermoumi/airmux"
 license = "MIT"
 keywords = ["cli", "tmux"]
 categories = ["command-line-utilities"]
