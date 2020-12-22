@@ -1,6 +1,6 @@
 # Rmux
 
-Just another tool that allows you to configure tmux sessions using YAML (or JSON). Tmux 3.0+ is required.
+Just another tmux session manager. Tmux 3.0+ is required.
 
 - [Rmux](#rmux)
   - [Usage](#usage)
