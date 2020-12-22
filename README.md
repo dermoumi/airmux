@@ -1,26 +1,52 @@
 # Rmux
 
-Just another tool that allows you to configure tmux sessions using YAML (or JSON). Tmux 3.0+ is required.
+Just another tmux session manager. Tmux 3.0+ is required.
 
-- [Rmux](#rmux)
-  - [Usage](#usage)
-    - [Example Rmux project:](#example-rmux-project)
-    - [Starting a session](#starting-a-session)
-    - [Create and edit project files](#create-and-edit-project-files)
-      - [Project definition](#project-definition)
-      - [Commands](#commands)
-      - [Window definition](#window-definition)
-      - [Pane definition](#pane-definition)
-      - [Layouts](#layouts)
-      - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
-    - [Local project files](#local-project-files)
-    - [Other commands](#other-commands)
-      - [List all projects](#list-all-projects)
-      - [Stop the session corresponding to a project](#stop-the-session-corresponding-to-a-project)
-      - [Delete a project](#delete-a-project)
-      - [Debug session creation](#debug-session-creation)
-      - [Save current session as a project](#save-current-session-as-a-project)
-  - [Copyright](#copyright)
+## Table of contents
+
+- [Installation](#installation)
+  - [Cargo install](#cargo-install)
+  - [Manual installation](#manual-installation)
+- [Usage](#usage)
+  - [Example Rmux project:](#example-rmux-project)
+  - [Starting a session](#starting-a-session)
+  - [Create and edit project files](#create-and-edit-project-files)
+    - [Project definition](#project-definition)
+    - [Commands](#commands)
+    - [Window definition](#window-definition)
+    - [Pane definition](#pane-definition)
+    - [Layouts](#layouts)
+    - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
+  - [Local project files](#local-project-files)
+  - [Other commands](#other-commands)
+    - [List all projects](#list-all-projects)
+    - [Stop the session corresponding to a project](#stop-the-session-corresponding-to-a-project)
+    - [Delete a project](#delete-a-project)
+    - [Debug session creation](#debug-session-creation)
+    - [Save current session as a project](#save-current-session-as-a-project)
+
+## Installation
+
+### Cargo install
+
+If you have `cargo` installed on your system:
+
+```console
+$ cargo install rmux
+```
+
+### Manual installation
+
+```console
+$ RMUX_TARGET="x86_64-unknown-linux-gnu" # Check the list of available targets on the releases page
+$ curl -o rmux -fsSL "https://github.com/dermoumi/rmux/releases/latest/download/rmux-$RMUX_TARGET"
+$ chmod +x rmux
+$ sudo mv rmux /usr/local/bin/
+```
+
+You can check the list of available targets in the [releases page][releases_page].
+
+[releases_page]: https://github.com/dermoumi/rmux/releases
 
 ## Usage
 
@@ -424,7 +450,3 @@ You can also print the project file to stdout instead of opening a text editor:
 ```console
 $ rmux freeze --stdout
 ```
-
-## Copyright
-
-Copyright (c) 2020 Saïd Dermoumi. See LICENSE for further details.
