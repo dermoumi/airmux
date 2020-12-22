@@ -1,0 +1,89 @@
+name: build
+
+on:
+  push:
+    tags:
+      - "v*" # push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - "x86_64-unknown-linux-gnu"
+          - "x86_64-unknown-linux-musl"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }}
+      - run: mv target/${{ matrix.target }}/release/rmux target/rmux-${{ matrix.target }}
+      # upx seems to fail on linux rust binaries, using strip for now
+      - run: strip target/rmux-${{ matrix.target }}
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: target/rmux-${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux-armv7:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target armv7-unknown-linux-musleabihf
+      - run: mv target/armv7-unknown-linux-musleabihf/release/rmux target/rmux-armv7-unknown-linux-musleabihf
+      # using cross' strip binary for armv7 file
+      - run: >-
+          docker run --rm
+          --volume $PWD:/build
+          rustembedded/cross:armv7-unknown-linux-musleabihf-0.2.1
+          arm-linux-musleabihf-strip
+          /build/target/rmux-armv7-unknown-linux-musleabihf
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: target/rmux-armv7-unknown-linux-musleabihf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-darwin:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-apple-darwin
+      - run: mv target/x86_64-apple-darwin/release/rmux target/rmux-x86_64-apple-darwin
+      - uses: svenstaro/upx-action@v2
+        with:
+          file: target/rmux-x86_64-apple-darwin
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: target/rmux-x86_64-apple-darwin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-pc-windows-msvc
+      - run: ren target/x86_64-pc-windows-msvc/release/rmux.exe rmux-x86_64-pc-windows-msvc.exe
+      - uses: svenstaro/upx-action@v2
+        with:
+          file: target/x86_64-pc-windows-msvc/release/rmux-x86_64-pc-windows-msvc.exe
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: target/x86_64-pc-windows-msvc/release/rmux-x86_64-pc-windows-msvc.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

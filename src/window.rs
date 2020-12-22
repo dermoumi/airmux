@@ -63,10 +63,11 @@ impl Window {
         }
 
         // Run check for each pane
-        self.panes
-            .iter()
-            .map(|p| p.check())
-            .collect::<Result<_, _>>()
+        for pane in &self.panes {
+            pane.check()?;
+        }
+
+        Ok(())
     }
 
     pub fn default_panes() -> Vec<Pane> {

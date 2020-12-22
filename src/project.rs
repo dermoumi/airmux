@@ -106,10 +106,11 @@ impl Project {
         }
 
         // Run checks for each window
-        self.windows
-            .iter()
-            .map(|w| w.check(self.pane_base_index))
-            .collect::<Result<_, _>>()
+        for window in &self.windows {
+            window.check(self.pane_base_index)?;
+        }
+
+        Ok(())
     }
 
     // Separates tmux_command into the command itself + an array of arguments
