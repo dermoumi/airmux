@@ -3,6 +3,9 @@
 Just another tmux session manager. Tmux 3.0+ is required.
 
 - [Rmux](#rmux)
+  - [Installation](#installation)
+    - [Cargo install](#cargo-install)
+    - [Manual installation](#manual-installation)
   - [Usage](#usage)
     - [Example Rmux project:](#example-rmux-project)
     - [Starting a session](#starting-a-session)
@@ -21,6 +24,29 @@ Just another tmux session manager. Tmux 3.0+ is required.
       - [Debug session creation](#debug-session-creation)
       - [Save current session as a project](#save-current-session-as-a-project)
   - [Copyright](#copyright)
+
+## Installation
+
+### Cargo install
+
+If you have `cargo` installed on your system:
+
+```console
+$ cargo install rmux
+```
+
+### Manual installation
+
+```console
+$ RMUX_TARGET="x86_64-unknown-linux-gnu" # Check the list of available targets on the releases page
+$ curl -o rmux -fsSL "https://github.com/dermoumi/rmux/releases/latest/download/rmux-$RMUX_TARGET"
+$ chmod +x rmux
+$ sudo mv rmux /usr/local/bin/
+```
+
+You can check the list of available targets in the [releases page][releases_page].
+
+[releases_page]: https://github.com/dermoumi/rmux/releases
 
 ## Usage
 
