@@ -2,28 +2,28 @@
 
 Just another tmux session manager. Tmux 3.0+ is required.
 
-- [Rmux](#rmux)
-  - [Installation](#installation)
-    - [Cargo install](#cargo-install)
-    - [Manual installation](#manual-installation)
-  - [Usage](#usage)
-    - [Example Rmux project:](#example-rmux-project)
-    - [Starting a session](#starting-a-session)
-    - [Create and edit project files](#create-and-edit-project-files)
-      - [Project definition](#project-definition)
-      - [Commands](#commands)
-      - [Window definition](#window-definition)
-      - [Pane definition](#pane-definition)
-      - [Layouts](#layouts)
-      - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
-    - [Local project files](#local-project-files)
-    - [Other commands](#other-commands)
-      - [List all projects](#list-all-projects)
-      - [Stop the session corresponding to a project](#stop-the-session-corresponding-to-a-project)
-      - [Delete a project](#delete-a-project)
-      - [Debug session creation](#debug-session-creation)
-      - [Save current session as a project](#save-current-session-as-a-project)
-  - [Copyright](#copyright)
+## Table of contents
+
+- [Installation](#installation)
+  - [Cargo install](#cargo-install)
+  - [Manual installation](#manual-installation)
+- [Usage](#usage)
+  - [Example Rmux project:](#example-rmux-project)
+  - [Starting a session](#starting-a-session)
+  - [Create and edit project files](#create-and-edit-project-files)
+    - [Project definition](#project-definition)
+    - [Commands](#commands)
+    - [Window definition](#window-definition)
+    - [Pane definition](#pane-definition)
+    - [Layouts](#layouts)
+    - [Environment variables and parameter expansion](#environment-variables-and-parameter-expansion)
+  - [Local project files](#local-project-files)
+  - [Other commands](#other-commands)
+    - [List all projects](#list-all-projects)
+    - [Stop the session corresponding to a project](#stop-the-session-corresponding-to-a-project)
+    - [Delete a project](#delete-a-project)
+    - [Debug session creation](#debug-session-creation)
+    - [Save current session as a project](#save-current-session-as-a-project)
 
 ## Installation
 
@@ -450,7 +450,3 @@ You can also print the project file to stdout instead of opening a text editor:
 ```console
 $ rmux freeze --stdout
 ```
-
-## Copyright
-
-Copyright (c) 2020 Saïd Dermoumi. See LICENSE for further details.
