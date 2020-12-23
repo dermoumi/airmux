@@ -50,6 +50,7 @@ pub fn start_project(
     show_source: bool,
     verbose: bool,
     args: &[&str],
+    switch: bool,
 ) -> Result<(), Box<dyn error::Error>> {
     let (project_name, project_file) = project::get_filename(config, project_name)?;
     ensure!(project_file.is_file(), ProjectDoesNotExist { project_name });
@@ -106,9 +107,13 @@ pub fn start_project(
         // Attach
         if project.attach {
             let session_name = project.session_name.as_ref().unwrap();
-            let (tmux_command, tmux_args) = match env::var("TMUX") {
-                Ok(_) => project.tmux_command(&["switch-client", "-t", session_name])?,
-                Err(_) => project.tmux_command(&["attach-session", "-t", session_name])?,
+            let use_switch = switch
+                || matches!(env::var("TMUX"), Ok(_))
+                || matches!(env::var("AIRMUX_FORCE_SWITCH"), Ok(_));
+            let (tmux_command, tmux_args) = if use_switch {
+                project.tmux_command(&["switch-client", "-t", session_name])?
+            } else {
+                project.tmux_command(&["attach-session", "-t", session_name])?
             };
             Command::new(tmux_command).args(tmux_args).spawn()?.wait()?;
         }

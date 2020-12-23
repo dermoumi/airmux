@@ -61,8 +61,11 @@ fn main() -> Result<(), MainError> {
                         .help("arguments to be passed as variables to the yaml file")
                         .value_name("ARGUMENT")
                         .multiple(true),
+                    Arg::with_name("switch")
+                        .help("use switch-client instead of attach-session even if TMUX is not set")
+                        .short("s")
+                        .long("switch"),
                     Arg::with_name("tmux_command")
-                        .global(true)
                         .help("tmux command to use")
                         .short("t")
                         .long("command")
@@ -94,7 +97,6 @@ fn main() -> Result<(), MainError> {
                         .value_name("ARGUMENT")
                         .multiple(true),
                     Arg::with_name("tmux_command")
-                        .global(true)
                         .help("tmux command to use")
                         .short("t")
                         .long("command")
@@ -113,7 +115,6 @@ fn main() -> Result<(), MainError> {
                         .value_name("ARGUMENT")
                         .multiple(true),
                     Arg::with_name("tmux_command")
-                        .global(true)
                         .help("tmux command to use")
                         .short("t")
                         .long("command")
@@ -151,7 +152,6 @@ fn main() -> Result<(), MainError> {
                         .value_name("ARGUMENT")
                         .multiple(true),
                     Arg::with_name("tmux_command")
-                        .global(true)
                         .help("tmux command to use")
                         .short("t")
                         .long("command")
@@ -216,7 +216,6 @@ fn main() -> Result<(), MainError> {
                         .value_name("ARGUMENT")
                         .multiple(true),
                     Arg::with_name("tmux_command")
-                        .global(true)
                         .help("tmux command to use")
                         .short("t")
                         .long("command")
@@ -248,6 +247,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let verbose = matches.is_present("verbose");
     let args = matches.values_of_lossy("args").unwrap_or_default();
     let args: Vec<&str> = args.iter().map(AsRef::as_ref).collect();
+    let switch = matches.is_present("switch");
 
     let force_attach = if attach {
         Some(true)
@@ -264,6 +264,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         false,
         verbose,
         &args,
+        switch,
     )
 }
 
@@ -292,6 +293,7 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
         true,
         verbose,
         &args,
+        false,
     )
 }
 
