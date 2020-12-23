@@ -1,6 +1,6 @@
 # Airmux
 
-Just another tmux session manager. Tmux 3.0+ is required.
+Just another tmux session manager. Requires Tmux 2.6+.
 
 ## Table of contents
 
@@ -14,6 +14,7 @@ Just another tmux session manager. Tmux 3.0+ is required.
   - [Create and edit project files](#create-and-edit-project-files)
     - [Project definition](#project-definition)
     - [Commands](#commands)
+    - [Note about on_exit and on_stop](#note-about-on_exit-and-on_stop)
     - [Window definition](#window-definition)
     - [Pane definition](#pane-definition)
     - [Layouts](#layouts)
@@ -244,6 +245,18 @@ Note: Airmux will always remove `\r` characters and replace `\n` with a space ch
 even if you don't use the correct yaml multiline syntax.
 
 All commands are executed regardless of the exit status of the previous command.
+
+#### Note about on_exit and on_stop
+
+Airmux sets the `exit-empty` option to `off` globally when a project that has `on_exit`
+or `on_stop` commands is started, to prevent tmux from stopping the server when the last session
+is closed.
+
+This is done to guarentee that any `on_exit` or `on_stop` commands are executed even if the last
+remaining session is closed.
+
+Do note however, the `exit-empty` option only exists in tmux 2.7+, and there's no workaround for
+versions older than that.
 
 #### Window definition
 

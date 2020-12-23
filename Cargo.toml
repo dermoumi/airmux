@@ -24,6 +24,4 @@ serde = { version = "1.0.117", features = ["derive"] }
 serde_json = "1.0.59"
 serde_yaml = "0.8.14"
 shellexpand = "2.0.0"
-
-[dev-dependencies]
 tempfile = "3.1.0"
