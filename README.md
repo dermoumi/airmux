@@ -10,6 +10,7 @@ Just another tmux session manager. Tmux 3.0+ is required.
 - [Usage](#usage)
   - [Example Airmux project:](#example-airmux-project)
   - [Starting a session](#starting-a-session)
+    - [Running from another tmux session](#running-from-another-tmux-session)
   - [Create and edit project files](#create-and-edit-project-files)
     - [Project definition](#project-definition)
     - [Commands](#commands)
@@ -123,6 +124,15 @@ $ airmux start my_project [param1 [param2...]]
 ```
 
 Parameters are accessible in the project file as `$1`, `$2`, etc...
+
+#### Running from another tmux session
+
+When airmux is executed from inside another tmux session (aka when `TMUX` environment variable is set),
+it uses `tmux switch-client` rather than `tmux attach-session`,
+allowing quick switching between projects.
+
+If the `--switch` is passed to `start` (or if the `AIRMUX_FORCE_SWITCH` environment variable is set),
+it will use `tmux switch-client` regardless of whether `TMUX` is set or not.
 
 ### Create and edit project files
 
