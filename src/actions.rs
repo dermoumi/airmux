@@ -18,7 +18,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::iter;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
 
 const FILE_EXTENSIONS: &[&str] = &["yml", "yaml", "json"];
 
@@ -70,28 +70,16 @@ pub fn start_project(
         // So we create a dummy tmux session that we'll discard at the end
         let dummy_session = source::TmuxDummySession::new(&project)?;
 
-        // Save the source to a temporary file
-        let mut source_file = NamedTempFile::new()?;
-        source_file.write_all(source.as_bytes())?;
-        let source_file_path = source_file.into_temp_path();
+        // Get tmux version
+        let (tmux_command, tmux_args) = project.tmux_command(&["-V"])?;
+        let version_output = Command::new(tmux_command).args(tmux_args).output()?;
+        let version = String::from_utf8_lossy(&version_output.stdout);
 
-        // Source our tmux config file
-        let (tmux_command, tmux_args) =
-            project.tmux_command(&["source", &source_file_path.to_string_lossy()])?;
-
-        let mut command = Command::new(tmux_command);
-        command.args(tmux_args);
-
-        if let Some(path) = &project.working_dir {
-            if path.is_dir() {
-                command.current_dir(path);
-            }
-        }
-
-        let mut child = command.spawn()?;
-
-        // Wait until tmux completely finished processing input
-        let status = child.wait()?;
+        let status = if version.starts_with("tmux 2.") {
+            source::exec_tmux_2(&project, &source)?
+        } else {
+            source::exec_tmux_3(&project, &source)?
+        };
 
         // Make sure to remove the dummy session before attaching,
         // Otherwise it'll pollute the session list the entire time we're attached
@@ -408,6 +396,61 @@ mod project {
 
 mod source {
     use super::*;
+
+    pub fn exec_tmux_2(
+        project: &Project,
+        source: &str,
+    ) -> Result<ExitStatus, Box<dyn error::Error>> {
+        // Save the source to a temporary file
+        let mut source_file = NamedTempFile::new()?;
+        source_file.write_all(source.as_bytes())?;
+        let source_file_path = source_file.into_temp_path();
+
+        // Source our tmux config file
+        let (tmux_command, tmux_args) =
+            project.tmux_command(&["source", &source_file_path.to_string_lossy()])?;
+
+        let mut command = Command::new(tmux_command);
+        command.args(tmux_args);
+
+        if let Some(path) = &project.working_dir {
+            if path.is_dir() {
+                command.current_dir(path);
+            }
+        }
+
+        let mut child = command.spawn()?;
+
+        // Wait until tmux completely finished processing input
+        Ok(child.wait()?)
+    }
+
+    pub fn exec_tmux_3(
+        project: &Project,
+        source: &str,
+    ) -> Result<ExitStatus, Box<dyn error::Error>> {
+        // Source our tmux config file
+        let (tmux_command, tmux_args) = project.tmux_command(&["source", "-"])?;
+
+        let mut command = Command::new(tmux_command);
+        command.args(tmux_args).stdin(Stdio::piped());
+
+        if let Some(path) = &project.working_dir {
+            if path.is_dir() {
+                command.current_dir(path);
+            }
+        }
+
+        let mut child = command.spawn()?;
+        child
+            .stdin
+            .as_mut()
+            .ok_or(Error::CannotPipeToTmux)?
+            .write_all(source.as_bytes())?;
+
+        // Wait until tmux completely finished processing input
+        Ok(child.wait()?)
+    }
 
     pub fn generate(project: &Project, verbose: bool) -> Result<String, Box<dyn error::Error>> {
         let tmux_command = project.tmux(&[] as &[&str])?;
