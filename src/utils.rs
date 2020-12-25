@@ -1,5 +1,5 @@
 use console::Term;
-use shell_words::split;
+use shell_words::{quote, split};
 use snafu::{ensure, Snafu};
 use std::error;
 use std::path;
@@ -82,6 +82,15 @@ pub fn prompt_confirmation(message: &str, default: bool) -> Result<bool, Box<dyn
     term.write_line(if reply { "y" } else { "n" })?;
 
     Ok(reply)
+}
+
+pub fn tmux_quote(part: &str) -> String {
+    quote(part).replace("'\\''", "'\"'\"'")
+}
+
+pub fn tmux_join(parts: &[&str]) -> String {
+    let parts: Vec<String> = parts.to_owned().into_iter().map(tmux_quote).collect();
+    parts.join(" ")
 }
 
 #[cfg(test)]
