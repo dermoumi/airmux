@@ -101,6 +101,9 @@ on_stop: docker stop r-redis r-postgresql
 # Activate python virtualenv on each of this session's panes
 pane_commands: source .venv/bin/activate
 
+# Clear all panes after creation (akin to pression CTRL+L)
+clear_panes: true
+
 # Define tmux windows
 windows:
   # First window contains 3 panes: an empty shell, the dev server output and the worker output
@@ -108,7 +111,7 @@ windows:
     panes:
       -
       - split: v # Split previous pane by half, vertically
-        command: python manage.py runserver
+        send_keys: python manage.py runserver # command is typed but not executed
       - split: h # split previous pane by half, horizontally
         command: python celery --app django_project worker
   # Second window contains logs of the previously run docker containers
@@ -373,7 +376,7 @@ panes:
     # Commands to type and run in this pane's shell (alias: command)
     commands:
 
-    # Key strokes that are typed but not executed (unless they contain a new line)
+    # Key strokes that are typed but not executed... as long as they don't contain a new line
     send_keys:
 ```
 
