@@ -20,6 +20,7 @@ pub struct Window {
     pub on_pane_create: Vec<String>,
     pub post_pane_create: Vec<String>,
     pub pane_commands: Vec<String>,
+    pub clear_panes: bool,
     pub panes: Vec<Pane>,
 }
 
@@ -68,6 +69,14 @@ impl Window {
         }
 
         Ok(())
+    }
+
+    pub fn default_clear_panes() -> bool {
+        false
+    }
+
+    pub fn is_default_clear_panes(clear_panes: &bool) -> bool {
+        *clear_panes == Self::default_clear_panes()
     }
 
     pub fn default_panes() -> Vec<Pane> {
@@ -131,6 +140,7 @@ impl Default for Window {
             on_pane_create: vec![],
             post_pane_create: vec![],
             pane_commands: vec![],
+            clear_panes: false,
             panes: Self::default_panes(),
         }
     }
@@ -206,6 +216,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
                 deserialize_with = "de_command_list"
             )]
             pane_commands: Vec<String>,
+            #[serde(default = "Window::default_clear_panes")]
+            clear_panes: bool,
             #[serde(
                 default = "Window::default_panes",
                 alias = "pane",
@@ -238,6 +250,8 @@ impl<'de> Visitor<'de> for WindowVisitor {
                 deserialize_with = "de_command_list"
             )]
             pane_commands: Vec<String>,
+            #[serde(default = "Window::default_clear_panes")]
+            clear_panes: bool,
             #[serde(
                 default = "Window::default_panes",
                 alias = "pane",
@@ -250,6 +264,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
         #[serde(untagged)]
         enum WindowOption {
             None,
+            Boolean(bool),
             String(String),
             CommandList(Vec<String>),
             PaneList(Vec<Pane>),
@@ -283,6 +298,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.on_pane_create = def.on_pane_create;
                             window.post_pane_create = def.post_pane_create;
                             window.pane_commands = def.pane_commands;
+                            window.clear_panes = def.clear_panes;
                             window.panes = def.panes;
                         }
                         WindowOption::Definition(def) => {
@@ -293,9 +309,11 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             window.on_pane_create = def.on_pane_create;
                             window.post_pane_create = def.post_pane_create;
                             window.pane_commands = def.pane_commands;
+                            window.clear_panes = def.clear_panes;
                             window.panes = def.panes;
                         }
                         WindowOption::PaneList(panes) => window.panes = panes,
+                        _ => return Err(de::Error::custom("invalid value for window definition")),
                     }
                 }
                 Some(key) => match value {
@@ -308,6 +326,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         "on_pane_create" => window.on_pane_create = vec![],
                         "post_pane_create" => window.post_pane_create = vec![],
                         "pane_commands" | "pane_command" | "pre" => window.pane_commands = vec![],
+                        "clear_panes" => window.clear_panes = false,
                         "panes" | "pane" => window.panes = vec![Pane::default()],
                         _ => {
                             if !first_entry {
@@ -318,6 +337,15 @@ impl<'de> Visitor<'de> for WindowVisitor {
                             }
 
                             window.name = Some(key);
+                        }
+                    },
+                    WindowOption::Boolean(val) => match key.as_str() {
+                        "clear_panes" => window.clear_panes = val,
+                        _ => {
+                            return Err(de::Error::custom(format!(
+                                "window field {:?} cannot be a boolean",
+                                key
+                            )));
                         }
                     },
                     WindowOption::String(val) => match key.as_str() {
@@ -387,6 +415,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         window.on_pane_create = def.on_pane_create;
                         window.post_pane_create = def.post_pane_create;
                         window.pane_commands = def.pane_commands;
+                        window.clear_panes = def.clear_panes;
                         window.panes = def.panes;
                     }
                     WindowOption::DefinitionWithName(def) => {
@@ -405,6 +434,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                         window.on_pane_create = def.on_pane_create;
                         window.post_pane_create = def.post_pane_create;
                         window.pane_commands = def.pane_commands;
+                        window.clear_panes = def.clear_panes;
                         window.panes = def.panes;
                     }
                     WindowOption::PaneList(panes) => match key.as_str() {

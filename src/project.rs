@@ -35,6 +35,7 @@ pub struct Project {
     pub on_pane_create: Vec<String>,
     pub post_pane_create: Vec<String>,
     pub pane_commands: Vec<String>,
+    pub clear_panes: bool,
     pub attach: bool,
     pub windows: Vec<Window>,
 }
@@ -174,12 +175,20 @@ impl Project {
         vec![Window::default()]
     }
 
+    fn default_clear_panes() -> bool {
+        false
+    }
+
+    fn is_default_clear_panes(clear_panes: &bool) -> bool {
+        *clear_panes == Self::default_clear_panes()
+    }
+
     fn default_attach() -> bool {
         true
     }
 
     fn is_default_attach(attach: &bool) -> bool {
-        attach == &Self::default_attach()
+        *attach == Self::default_attach()
     }
 
     fn de_window_base_index<'de, D>(deserializer: D) -> Result<usize, D::Error>
@@ -227,7 +236,7 @@ impl Project {
                 .eq(windows.to_owned())
         }
 
-        pub fn is_default_panes(panes: &[CompactPane]) -> bool {
+        fn is_default_panes(panes: &[CompactPane]) -> bool {
             Window::default_panes()
                 .into_iter()
                 .map(CompactPane::from)
@@ -235,47 +244,49 @@ impl Project {
         }
 
         #[derive(Serialize, PartialEq, Clone)]
-        pub struct CompactProject {
+        struct CompactProject {
             #[serde(skip_serializing_if = "is_default")]
-            pub session_name: Option<String>,
+            session_name: Option<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub tmux_command: Option<String>,
+            tmux_command: Option<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub tmux_options: Option<String>,
+            tmux_options: Option<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub tmux_socket: Option<String>,
+            tmux_socket: Option<String>,
             #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
-            pub working_dir: Option<PathBuf>,
+            working_dir: Option<PathBuf>,
             #[serde(skip_serializing_if = "Project::is_default_window_base_index")]
-            pub window_base_index: usize,
+            window_base_index: usize,
             #[serde(skip_serializing_if = "Project::is_default_pane_base_index")]
-            pub pane_base_index: usize,
+            pane_base_index: usize,
             #[serde(skip_serializing_if = "is_default")]
-            pub startup_window: StartupWindow,
+            startup_window: StartupWindow,
             #[serde(skip_serializing_if = "is_default")]
-            pub startup_pane: Option<usize>,
+            startup_pane: Option<usize>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_start: Vec<String>,
+            on_start: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_first_start: Vec<String>,
+            on_first_start: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_restart: Vec<String>,
+            on_restart: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_exit: Vec<String>,
+            on_exit: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_stop: Vec<String>,
+            on_stop: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub post_create: Vec<String>,
+            post_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_pane_create: Vec<String>,
+            on_pane_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub post_pane_create: Vec<String>,
+            post_pane_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub pane_commands: Vec<String>,
+            pane_commands: Vec<String>,
+            #[serde(skip_serializing_if = "Project::is_default_clear_panes")]
+            clear_panes: bool,
             #[serde(skip_serializing_if = "Project::is_default_attach")]
-            pub attach: bool,
+            attach: bool,
             #[serde(skip_serializing_if = "is_default_windows")]
-            pub windows: Vec<CompactWindow>,
+            windows: Vec<CompactWindow>,
         }
 
         impl From<Project> for CompactProject {
@@ -299,6 +310,7 @@ impl Project {
                     on_pane_create: copy.on_pane_create,
                     post_pane_create: copy.post_pane_create,
                     pane_commands: copy.pane_commands,
+                    clear_panes: copy.clear_panes,
                     attach: copy.attach,
                     windows: copy.windows.into_iter().map(CompactWindow::from).collect(),
                 }
@@ -306,24 +318,24 @@ impl Project {
         }
 
         #[derive(Serialize, PartialEq, Clone)]
-        pub struct CompactWindow {
-            pub name: Option<String>,
+        struct CompactWindow {
+            name: Option<String>,
             #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
-            pub working_dir: Option<PathBuf>,
+            working_dir: Option<PathBuf>,
             #[serde(skip_serializing_if = "is_default")]
-            pub layout: Option<String>,
+            layout: Option<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_create: Vec<String>,
+            on_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub post_create: Vec<String>,
+            post_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_pane_create: Vec<String>,
+            on_pane_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub post_pane_create: Vec<String>,
+            post_pane_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub pane_commands: Vec<String>,
+            pane_commands: Vec<String>,
             #[serde(skip_serializing_if = "is_default_panes", serialize_with = "ser_panes")]
-            pub panes: Vec<CompactPane>,
+            panes: Vec<CompactPane>,
         }
 
         impl From<Window> for CompactWindow {
@@ -343,25 +355,25 @@ impl Project {
         }
 
         #[derive(Serialize, PartialEq, Clone)]
-        pub struct CompactPane {
+        struct CompactPane {
             #[serde(skip_serializing_if = "is_default")]
-            pub name: Option<String>,
+            name: Option<String>,
             #[serde(skip_serializing_if = "is_default", serialize_with = "ser_working_dir")]
-            pub working_dir: Option<PathBuf>,
+            working_dir: Option<PathBuf>,
             #[serde(skip_serializing_if = "is_default")]
-            pub split: Option<PaneSplit>,
+            split: Option<PaneSplit>,
             #[serde(skip_serializing_if = "is_default")]
-            pub split_from: Option<usize>,
+            split_from: Option<usize>,
             #[serde(skip_serializing_if = "is_default")]
-            pub split_size: Option<String>,
+            split_size: Option<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub clear: bool,
+            clear: bool,
             #[serde(skip_serializing_if = "is_default")]
-            pub on_create: Vec<String>,
+            on_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub post_create: Vec<String>,
+            post_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
-            pub commands: Vec<String>,
+            commands: Vec<String>,
         }
 
         impl From<Pane> for CompactPane {
@@ -380,7 +392,7 @@ impl Project {
             }
         }
 
-        pub fn ser_panes<S>(panes: &[CompactPane], serializer: S) -> Result<S::Ok, S::Error>
+        fn ser_panes<S>(panes: &[CompactPane], serializer: S) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
         {
@@ -439,6 +451,7 @@ impl Default for Project {
             on_pane_create: vec![],
             post_pane_create: vec![],
             pane_commands: vec![],
+            clear_panes: false,
             attach: true,
             windows: Self::default_windows(),
         }
@@ -527,6 +540,8 @@ impl<'de> Deserialize<'de> for Project {
                 deserialize_with = "de_command_list"
             )]
             pane_commands: Vec<String>,
+            #[serde(default = "Project::default_clear_panes")]
+            clear_panes: bool,
             #[serde(default, alias = "tmux_attached")]
             attach: Option<bool>,
             #[serde(default, alias = "tmux_detached")]
@@ -578,6 +593,7 @@ impl<'de> Deserialize<'de> for Project {
                     on_pane_create: project.on_pane_create,
                     post_pane_create: project.post_pane_create,
                     pane_commands: project.pane_commands,
+                    clear_panes: project.clear_panes,
                     attach,
                     windows: project.windows,
                 }
