@@ -3,3 +3,4 @@
 
 [build.env]
 passthrough = ["RUST_BACKTRACE", "RUST_LOG", "TRAVIS"]
+volumes = ["BUILD_DIR"]
