@@ -71,14 +71,6 @@ impl Window {
         Ok(())
     }
 
-    pub fn default_clear_panes() -> bool {
-        false
-    }
-
-    pub fn is_default_clear_panes(clear_panes: &bool) -> bool {
-        *clear_panes == Self::default_clear_panes()
-    }
-
     pub fn default_panes() -> Vec<Pane> {
         vec![Pane::default()]
     }
@@ -216,7 +208,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                 deserialize_with = "de_command_list"
             )]
             pane_commands: Vec<String>,
-            #[serde(default = "Window::default_clear_panes")]
+            #[serde(default)]
             clear_panes: bool,
             #[serde(
                 default = "Window::default_panes",
@@ -250,7 +242,7 @@ impl<'de> Visitor<'de> for WindowVisitor {
                 deserialize_with = "de_command_list"
             )]
             pane_commands: Vec<String>,
-            #[serde(default = "Window::default_clear_panes")]
+            #[serde(default)]
             clear_panes: bool,
             #[serde(
                 default = "Window::default_panes",

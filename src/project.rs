@@ -175,14 +175,6 @@ impl Project {
         vec![Window::default()]
     }
 
-    fn default_clear_panes() -> bool {
-        false
-    }
-
-    fn is_default_clear_panes(clear_panes: &bool) -> bool {
-        *clear_panes == Self::default_clear_panes()
-    }
-
     fn default_attach() -> bool {
         true
     }
@@ -281,7 +273,7 @@ impl Project {
             post_pane_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
             pane_commands: Vec<String>,
-            #[serde(skip_serializing_if = "Project::is_default_clear_panes")]
+            #[serde(skip_serializing_if = "is_default")]
             clear_panes: bool,
             #[serde(skip_serializing_if = "Project::is_default_attach")]
             attach: bool,
@@ -334,6 +326,8 @@ impl Project {
             post_pane_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
             pane_commands: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            clear_panes: bool,
             #[serde(skip_serializing_if = "is_default_panes", serialize_with = "ser_panes")]
             panes: Vec<CompactPane>,
         }
@@ -349,6 +343,7 @@ impl Project {
                     on_pane_create: copy.on_pane_create,
                     post_pane_create: copy.post_pane_create,
                     pane_commands: copy.pane_commands,
+                    clear_panes: copy.clear_panes,
                     panes: copy.panes.into_iter().map(CompactPane::from).collect(),
                 }
             }
@@ -540,7 +535,7 @@ impl<'de> Deserialize<'de> for Project {
                 deserialize_with = "de_command_list"
             )]
             pane_commands: Vec<String>,
-            #[serde(default = "Project::default_clear_panes")]
+            #[serde(default)]
             clear_panes: bool,
             #[serde(default, alias = "tmux_attached")]
             attach: Option<bool>,
