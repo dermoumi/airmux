@@ -21,8 +21,10 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
       - run: mv target/${{ matrix.target }}/release/airmux target/airmux-${{ matrix.target }}
-      # upx seems to fail on linux rust binaries, using strip for now
       - run: strip target/airmux-${{ matrix.target }}
+      - uses: svenstaro/upx-action@v2
+        with:
+          file: target/airmux-${{ matrix.target }}
       - uses: softprops/action-gh-release@v1
         with:
           files: target/airmux-${{ matrix.target }}
@@ -39,13 +41,16 @@ jobs:
           command: build
           args: --release --target armv7-unknown-linux-musleabihf
       - run: mv target/armv7-unknown-linux-musleabihf/release/airmux target/airmux-armv7-unknown-linux-musleabihf
-      # using cross' strip binary for armv7 file
+      # using cross' strip binary for armv7 executable
       - run: >-
           docker run --rm
           --volume $PWD:/build
           rustembedded/cross:armv7-unknown-linux-musleabihf-0.2.1
           arm-linux-musleabihf-strip
           /build/target/airmux-armv7-unknown-linux-musleabihf
+      - uses: svenstaro/upx-action@v2
+        with:
+          file: target/airmux-armv7-unknown-linux-musleabihf
       - uses: softprops/action-gh-release@v1
         with:
           files: target/airmux-armv7-unknown-linux-musleabihf
