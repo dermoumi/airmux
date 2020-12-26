@@ -320,6 +320,7 @@ fn project_deserializes_correctly() {
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
+        clear_panes: true
         attach: false
         window: echo not_a_portal
     "#;
@@ -346,6 +347,7 @@ fn project_deserializes_correctly() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             attach: false,
             windows: vec![Window::from("echo not_a_portal")],
         }

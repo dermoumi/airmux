@@ -820,7 +820,7 @@ mod source {
                 }
 
                 // pane's clear
-                if pane.clear {
+                if pane.clear || window.clear_panes || project.clear_panes {
                     window_commands.push(tmux_join(&[
                         "run",
                         &project.tmux(&["send", "-t", target_pane, "C-l"])?,
