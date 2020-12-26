@@ -833,7 +833,7 @@ mod source {
                     .collect();
 
                 // pane's clear
-                if pane.clear {
+                if pane.clear || window.clear_panes || project.clear_panes {
                     send_keys.push("C-l");
                 }
 

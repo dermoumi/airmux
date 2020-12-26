@@ -219,6 +219,9 @@ post_pane_create:
 # Commands that are executed in the shell of each pane (alias: pre_window, pane_command)
 pane_commands:
 
+# Whether or not to clear (send ctrl+L) all of the underlying panes after creation
+clear_panes: false
+
 # Whether or not the session automatically attaches on creation (can't use both)
 attach: true
 detached: false
@@ -294,6 +297,9 @@ windows:
 
       # Commands that are executed in the shell of each pane (alias: pre, pane_command)
       pane_commands:
+
+      # Whether or not to clear (send ctrl+L) all of the underlying panes after creation
+      clear_panes: false
 
       # List of panes
       panes: <default empty pane>

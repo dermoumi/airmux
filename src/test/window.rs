@@ -216,6 +216,7 @@ fn window_1st_form_deserializes_correctly_with_key_name() {
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
+        clear_panes: true
         panes: echo pane
     "#;
 
@@ -231,6 +232,7 @@ fn window_1st_form_deserializes_correctly_with_key_name() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
@@ -247,6 +249,7 @@ fn window_1st_form_deserializes_correctly_with_null_key_name() {
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
+        clear_panes: true
         panes: echo pane
     "#;
 
@@ -262,6 +265,7 @@ fn window_1st_form_deserializes_correctly_with_null_key_name() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
@@ -278,6 +282,7 @@ fn window_1st_form_fails_when_key_name_is_not_first_line() {
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
+        clear_panes: true,
         panes: echo pane
     "#;
 
@@ -301,6 +306,7 @@ fn window_1st_form_fails_when_null_key_name_is_not_first_line() {
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
+        clear_panes: true,
         panes: echo pane
     "#;
 
@@ -323,6 +329,7 @@ fn window_1st_form_deserializes_correctly_with_explicit_name() {
         on_pane_create: echo on_pane_create
         post_pane_create: echo post_pane_create
         pane_command: echo pane_command
+        clear_panes: true
         panes: echo pane
         name: my name
     "#;
@@ -339,6 +346,7 @@ fn window_1st_form_deserializes_correctly_with_explicit_name() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
@@ -495,6 +503,22 @@ fn window_1st_form_fails_when_a_field_does_not_accept_a_pane_list() {
 }
 
 #[test]
+fn window_1st_form_fails_when_clear_panes_has_an_invalid_value() {
+    let yaml = r#"
+        window:
+        clear_panes: hello
+    "#;
+
+    let result: Result<Window, _> = serde_yaml::from_str(yaml);
+    assert!(result.is_err());
+    assert!(result
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("window field \"clear_panes\" cannot be a string"));
+}
+
+#[test]
 fn window_2nd_form_deserializes_from_null() {
     let yaml = r#"
         win1:
@@ -582,6 +606,7 @@ fn window_2nd_form_deserializes_correctly_with_name() {
             on_pane_create: echo on_pane_create
             post_pane_create: echo post_pane_create
             pane_command: echo pane_command
+            clear_panes: true
             panes: echo pane
     "#;
 
@@ -597,6 +622,7 @@ fn window_2nd_form_deserializes_correctly_with_name() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
@@ -613,6 +639,7 @@ fn window_2nd_form_deserializes_correctly_with_null_name() {
             on_pane_create: echo on_pane_create
             post_pane_create: echo post_pane_create
             pane_command: echo pane_command
+            clear_panes: true
             panes: echo pane
     "#;
 
@@ -628,6 +655,7 @@ fn window_2nd_form_deserializes_correctly_with_null_name() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
@@ -738,7 +766,7 @@ fn window_2nd_form_raises_error_on_invalid_window_definition() {
         .err()
         .unwrap()
         .to_string()
-        .contains("data did not match any variant of untagged enum WindowOption"));
+        .contains("window field \"win1\" cannot be a boolean"));
 }
 
 #[test]
@@ -753,6 +781,7 @@ fn window_3rd_form_deserializes_correctly_with_string_key() {
             on_pane_create: echo on_pane_create
             post_pane_create: echo post_pane_create
             pane_command: echo pane_command
+            clear_panes: true
             panes: echo pane
     "#;
 
@@ -768,6 +797,7 @@ fn window_3rd_form_deserializes_correctly_with_string_key() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
@@ -785,6 +815,7 @@ fn window_3rd_form_deserializes_correctly_with_null_key() {
             on_pane_create: echo on_pane_create
             post_pane_create: echo post_pane_create
             pane_command: echo pane_command
+            clear_panes: true
             panes: echo pane
     "#;
 
@@ -800,6 +831,7 @@ fn window_3rd_form_deserializes_correctly_with_null_key() {
             on_pane_create: vec![String::from("echo on_pane_create")],
             post_pane_create: vec![String::from("echo post_pane_create")],
             pane_commands: vec![String::from("echo pane_command")],
+            clear_panes: true,
             panes: vec![Pane::from("echo pane")],
         }
     );
