@@ -51,6 +51,7 @@ jobs:
       - uses: svenstaro/upx-action@v2
         with:
           file: target/airmux-armv7-unknown-linux-musleabihf
+          strip: false
       - uses: softprops/action-gh-release@v1
         with:
           files: target/airmux-armv7-unknown-linux-musleabihf
