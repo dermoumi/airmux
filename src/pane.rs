@@ -20,6 +20,7 @@ pub struct Pane {
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
     pub commands: Vec<String>,
+    pub send_keys: Vec<String>,
 }
 
 impl Pane {
@@ -150,6 +151,8 @@ impl<'de> Visitor<'de> for PaneVisitor {
             post_create: Vec<String>,
             #[serde(default, alias = "command", deserialize_with = "de_command_list")]
             commands: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            send_keys: Vec<String>,
         }
 
         #[derive(Deserialize, Debug)]
@@ -173,6 +176,8 @@ impl<'de> Visitor<'de> for PaneVisitor {
             post_create: Vec<String>,
             #[serde(default, alias = "command", deserialize_with = "de_command_list")]
             commands: Vec<String>,
+            #[serde(default, deserialize_with = "de_command_list")]
+            send_keys: Vec<String>,
         }
 
         #[derive(Deserialize, Debug)]
@@ -225,6 +230,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                             pane.on_create = def.on_create;
                             pane.post_create = def.post_create;
                             pane.commands = def.commands;
+                            pane.send_keys = def.send_keys;
                         }
                         PaneOption::DefinitionWithName(def) => {
                             pane.name = def.name;
@@ -236,6 +242,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                             pane.on_create = def.on_create;
                             pane.post_create = def.post_create;
                             pane.commands = def.commands;
+                            pane.send_keys = def.send_keys;
                         }
                     }
                 }
@@ -250,6 +257,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "on_create" => pane.on_create = vec![],
                         "post_create" => pane.post_create = vec![],
                         "commands" | "command" => pane.commands = vec![],
+                        "send_keys" => pane.send_keys = vec![],
                         _ => {
                             if !first_entry {
                                 return Err(de::Error::custom(format!(
@@ -311,6 +319,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "on_create" => pane.on_create = vec![process_command(val)],
                         "post_create" => pane.post_create = vec![process_command(val)],
                         "commands" | "command" => pane.commands = vec![process_command(val)],
+                        "send_keys" => pane.send_keys = vec![process_command(val)],
                         _ => {
                             if !first_entry {
                                 return Err(de::Error::custom(format!(
@@ -327,6 +336,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "on_create" => pane.on_create = process_command_list(commands),
                         "post_create" => pane.post_create = process_command_list(commands),
                         "commands" | "command" => pane.commands = process_command_list(commands),
+                        "send_keys" => pane.send_keys = process_command_list(commands),
                         _ => {
                             if !first_entry {
                                 return Err(de::Error::custom(format!(
@@ -356,6 +366,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         pane.on_create = def.on_create;
                         pane.post_create = def.post_create;
                         pane.commands = def.commands;
+                        pane.send_keys = def.send_keys;
                     }
                     PaneOption::DefinitionWithName(def) => {
                         if !first_entry {
@@ -374,6 +385,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         pane.on_create = def.on_create;
                         pane.post_create = def.post_create;
                         pane.commands = def.commands;
+                        pane.send_keys = def.send_keys;
                     }
                 },
             }

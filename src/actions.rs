@@ -819,12 +819,31 @@ mod source {
                     ]));
                 }
 
+                // send_keys for the pane
+                let mut send_keys: Vec<&str> = pane
+                    .send_keys
+                    .iter()
+                    .filter_map(|command| {
+                        if command.is_empty() {
+                            None
+                        } else {
+                            Some(command.as_str())
+                        }
+                    })
+                    .collect();
+
                 // pane's clear
                 if pane.clear {
-                    window_commands.push(tmux_join(&[
-                        "run",
-                        &project.tmux(&["send", "-t", target_pane, "C-l"])?,
-                    ]));
+                    send_keys.push("C-l");
+                }
+
+                // Send keys
+                if !send_keys.is_empty() {
+                    let send_keys: Vec<&str> = vec!["send", "-t", target_pane]
+                        .into_iter()
+                        .chain(send_keys)
+                        .collect();
+                    window_commands.push(tmux_join(&["run", &project.tmux(&send_keys)?]));
                 }
             }
 

@@ -96,6 +96,7 @@ fn pane_1st_form_deserializes_correctly() {
         on_create: echo on_create
         post_create: echo post_create
         command: echo command
+        send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -111,6 +112,7 @@ fn pane_1st_form_deserializes_correctly() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")]
         }
     )
 }
@@ -173,6 +175,7 @@ fn pane_1st_form_deserializes_correctly_with_key_name() {
         on_create: echo on_create
         post_create: echo post_create
         command: echo command
+        send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -188,6 +191,7 @@ fn pane_1st_form_deserializes_correctly_with_key_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -204,6 +208,7 @@ fn pane_1st_form_deserializes_correctly_with_null_key_name() {
         on_create: echo on_create
         post_create: echo post_create
         command: echo command
+        send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -219,6 +224,7 @@ fn pane_1st_form_deserializes_correctly_with_null_key_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -235,6 +241,7 @@ fn pane_1st_form_fails_when_key_name_is_not_first_line() {
         on_create: echo on_create
         post_create: echo post_create
         command: echo command
+        send_keys: echo send_keys
     "#;
 
     let result = serde_yaml::from_str::<Pane>(yaml);
@@ -258,6 +265,7 @@ fn pane_1st_form_fails_when_null_key_name_is_not_first_line() {
         on_create: echo on_create
         post_create: echo post_create
         command: echo command
+        send_keys: echo send_keys
     "#;
 
     let result = serde_yaml::from_str::<Pane>(yaml);
@@ -416,6 +424,7 @@ fn pane_2nd_form_deserializes_correctly_with_name() {
             on_create: echo on_create
             post_create: echo post_create
             command: echo command
+            send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -431,6 +440,7 @@ fn pane_2nd_form_deserializes_correctly_with_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -447,6 +457,7 @@ fn pane_2nd_form_deserializes_correctly_with_null_name() {
             on_create: echo on_create
             post_create: echo post_create
             command: echo command
+            send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -462,6 +473,7 @@ fn pane_2nd_form_deserializes_correctly_with_null_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -721,6 +733,7 @@ fn pane_3rd_form_deserializes_correctly_with_name() {
             on_create: echo on_create
             post_create: echo post_create
             command: echo command
+            send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -736,6 +749,7 @@ fn pane_3rd_form_deserializes_correctly_with_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -753,6 +767,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_name() {
             on_create: echo on_create
             post_create: echo post_create
             command: echo command
+            send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -768,6 +783,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_name() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -785,6 +801,7 @@ fn pane_3rd_form_deserializes_correctly_with_id() {
             on_create: echo on_create
             post_create: echo post_create
             command: echo command
+            send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -800,6 +817,7 @@ fn pane_3rd_form_deserializes_correctly_with_id() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }
@@ -817,6 +835,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
             on_create: echo on_create
             post_create: echo post_create
             command: echo command
+            send_keys: echo send_keys
     "#;
 
     let pane: Pane = serde_yaml::from_str(yaml).unwrap();
@@ -832,6 +851,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
             commands: vec![String::from("echo command")],
+            send_keys: vec![String::from("echo send_keys")],
         }
     )
 }

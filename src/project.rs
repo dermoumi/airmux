@@ -362,6 +362,8 @@ impl Project {
             pub post_create: Vec<String>,
             #[serde(skip_serializing_if = "is_default")]
             pub commands: Vec<String>,
+            #[serde(skip_serializing_if = "is_default")]
+            pub send_keys: Vec<String>,
         }
 
         impl From<Pane> for CompactPane {
@@ -376,6 +378,7 @@ impl Project {
                     on_create: copy.on_create,
                     post_create: copy.post_create,
                     commands: copy.commands,
+                    send_keys: copy.send_keys,
                 }
             }
         }
@@ -395,6 +398,7 @@ impl Project {
                     && is_default(&pane.clear)
                     && is_default(&pane.on_create)
                     && is_default(&pane.post_create)
+                    && is_default(&pane.send_keys)
                 {
                     if pane.commands.is_empty() {
                         seq.serialize_element(&None as &Option<&str>)?;

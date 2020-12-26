@@ -366,6 +366,9 @@ panes:
 
     # Commands to type and run in this pane's shell (alias: command)
     commands:
+
+    # Key strokes that are typed but not executed (unless they contain a new line)
+    send_keys:
 ```
 
 #### Layouts
