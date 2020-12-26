@@ -1,6 +1,6 @@
 [package]
 name = "airmux"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Dermoumi S. <hi@sdrm.me>"]
 edition = "2018"
 description = "Just another tmux session manager"
