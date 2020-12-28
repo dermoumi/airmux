@@ -25,6 +25,7 @@ jobs:
       - uses: svenstaro/upx-action@v2
         with:
           file: target/airmux-${{ matrix.target }}
+          args: --best --lzma
       - uses: softprops/action-gh-release@v1
         with:
           files: target/airmux-${{ matrix.target }}
@@ -52,6 +53,7 @@ jobs:
         with:
           file: target/airmux-armv7-unknown-linux-musleabihf
           strip: false
+          args: --best --lzma
       - uses: softprops/action-gh-release@v1
         with:
           files: target/airmux-armv7-unknown-linux-musleabihf
@@ -70,6 +72,7 @@ jobs:
       - uses: svenstaro/upx-action@v2
         with:
           file: target/airmux-x86_64-apple-darwin
+          args: --best
       - uses: softprops/action-gh-release@v1
         with:
           files: target/airmux-x86_64-apple-darwin
@@ -88,6 +91,7 @@ jobs:
       - uses: svenstaro/upx-action@v2
         with:
           file: target/x86_64-pc-windows-msvc/release/airmux-x86_64-pc-windows-msvc.exe
+          args: -9
       - uses: softprops/action-gh-release@v1
         with:
           files: target/x86_64-pc-windows-msvc/release/airmux-x86_64-pc-windows-msvc.exe
