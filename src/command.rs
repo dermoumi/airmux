@@ -10,7 +10,7 @@ where
         List(Vec<String>),
         Single(String),
         Empty,
-    };
+    }
 
     let command_list: CommandList = de::Deserialize::deserialize(deserializer)?;
     Ok(match command_list {

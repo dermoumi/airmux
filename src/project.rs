@@ -209,7 +209,7 @@ impl Project {
             Empty,
             List(Vec<Window>),
             Single(Window),
-        };
+        }
 
         let window_list: WindowList = de::Deserialize::deserialize(deserializer)?;
 

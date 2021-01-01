@@ -49,7 +49,7 @@ impl Pane {
             Cells(usize),
             Percent(String),
             None,
-        };
+        }
 
         let size: SplitSize = de::Deserialize::deserialize(deserializer)?;
         Ok(match size {
