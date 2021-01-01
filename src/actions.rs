@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::env;
 use std::error;
 use std::fs;
-use std::io::prelude::*;
+use std::io::{self, prelude::*};
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
@@ -42,18 +42,24 @@ pub enum Error {
     UnsupportedFileExtension { extension: String },
     #[snafu(display("you should be in an active tmux session to run this command"))]
     NoActiveTmuxSession,
+    #[snafu(display("cannot extract a project name from project file {:?}", project_file))]
+    CannotExtractProjectName { project_file: PathBuf },
+    #[snafu(display("cannot edit a piped project file"))]
+    CannotEditStdinProject,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn start_project(
     config: &Config,
     project_name: Option<&str>,
+    project_file: Option<&str>,
     force_attach: Option<bool>,
     show_source: bool,
     verbose: bool,
     args: &[&str],
     switch: bool,
 ) -> Result<(), Box<dyn error::Error>> {
-    let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let (project_name, project_file) = project::get_filename(config, project_name, project_file)?;
     ensure!(project_file.is_file(), ProjectDoesNotExist { project_name });
 
     let project = project::load(config, &project_name, &project_file, force_attach, args)?;
@@ -115,9 +121,10 @@ pub fn start_project(
 pub fn kill_project(
     config: &Config,
     project_name: Option<&str>,
+    project_file: Option<&str>,
     args: &[&str],
 ) -> Result<(), Box<dyn error::Error>> {
-    let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let (project_name, project_file) = project::get_filename(config, project_name, project_file)?;
     ensure!(project_file.is_file(), ProjectDoesNotExist { project_name });
 
     let project = project::load(
@@ -152,18 +159,21 @@ pub fn kill_project(
 pub fn edit_project(
     config: &Config,
     project_name: Option<&str>,
+    project_file: Option<&str>,
     extension: Option<&str>,
     editor: &str,
     no_check: bool,
     args: &[&str],
 ) -> Result<(), Box<dyn error::Error>> {
-    let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let (project_name, project_file) = project::get_filename(config, project_name, project_file)?;
     let extension = match extension {
         Some(extension) => extension.to_string(),
         None => project_file
             .extension()
             .map_or(String::from("yml"), |e| e.to_string_lossy().to_string()),
     };
+
+    ensure!(project_file != PathBuf::new(), CannotEditStdinProject);
 
     edit::check_supported_extension(&extension)?;
     let project_file = project_file.with_extension(&extension);
@@ -185,7 +195,7 @@ pub fn remove_project(
     project_name: Option<&str>,
     no_input: bool,
 ) -> Result<(), Box<dyn error::Error>> {
-    let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let (project_name, project_file) = project::get_filename(config, project_name, None)?;
     ensure!(project_file.is_file(), ProjectDoesNotExist { project_name });
 
     if !no_input
@@ -245,7 +255,7 @@ pub fn freeze_project(
         return Ok(());
     }
 
-    let (project_name, project_file) = project::get_filename(config, project_name)?;
+    let (project_name, project_file) = project::get_filename(config, project_name, None)?;
     let extension = match extension {
         Some(extension) => extension.to_string(),
         None => project_file
@@ -288,9 +298,37 @@ mod project {
     pub fn get_filename(
         config: &Config,
         project_name: Option<&str>,
+        project_file: Option<&str>,
     ) -> Result<(String, PathBuf), Box<dyn error::Error>> {
+        // If the project file is supplied, use it directly
+        if let Some(project_file) = project_file {
+            // Return an empty project file if reading from stdin
+            if project_file == "-" {
+                // If reading project from stdin, project_name must be explicitly set
+                ensure!(project_name.is_some(), ProjectNameEmpty);
+
+                let project_name = project_name.unwrap();
+                ensure!(!project_name.is_empty(), ProjectNameEmpty);
+
+                return Ok((project_name.to_string(), PathBuf::new()));
+            }
+
+            // extract filename from project file path if it's not set
+            let project_file = PathBuf::from(project_file);
+            if project_name.is_none() {
+                let filename = project_file.file_name();
+                ensure!(
+                    filename.is_some(),
+                    CannotExtractProjectName { project_file },
+                );
+
+                let project_name = filename.unwrap().to_string_lossy().to_string();
+                return Ok((project_name, project_file));
+            }
+        }
+
         if let Some(project_name) = project_name {
-            ensure!(!project_name.is_empty(), ProjectNameEmpty {});
+            ensure!(!project_name.is_empty(), ProjectNameEmpty);
 
             let projects_dir = config.get_projects_dir("")?;
             let project_file = projects_dir.join(project_name);
@@ -343,7 +381,14 @@ mod project {
     where
         P: AsRef<Path>,
     {
-        let project_yaml = fs::read_to_string(project_file)?;
+        let project_yaml = if project_file.as_ref() == PathBuf::new() {
+            fs::read_to_string(project_file)?
+        } else {
+            let mut buffer = String::new();
+            io::stdin().read_to_string(&mut buffer)?;
+            buffer
+        };
+
         let project_yaml = env_with_context(&project_yaml, |s| env_context(s, args))
             .map_err(|x| x.to_string())?
             .to_string();
@@ -1071,7 +1116,7 @@ mod edit {
         no_check: bool,
         args: &[&str],
     ) -> Result<(), Box<dyn error::Error>> {
-        ensure!(!editor.is_empty(), EditorEmpty {});
+        ensure!(!editor.is_empty(), EditorEmpty);
 
         // Make sure the project's parent directory exists
         if let Some(parent) = project_file.parent() {

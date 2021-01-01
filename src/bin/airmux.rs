@@ -44,6 +44,11 @@ fn main() -> Result<(), MainError> {
                         .help("name of the project")
                         .value_name("PROJECT_NAME")
                         .index(1),
+                    Arg::with_name("project_file")
+                        .help("explicitly specify a project file to use (use - for stdin)")
+                        .short("f")
+                        .long("file")
+                        .value_name("PROJECT_FILE"),
                     Arg::with_name("attach")
                         .help("force attach the session")
                         .short("a")
@@ -79,6 +84,11 @@ fn main() -> Result<(), MainError> {
                         .help("name of the project")
                         .value_name("PROJECT_NAME")
                         .index(1),
+                    Arg::with_name("project_file")
+                        .help("explicitly specify a project file to use (use - for stdin)")
+                        .short("f")
+                        .long("file")
+                        .value_name("PROJECT_FILE"),
                     Arg::with_name("attach")
                         .help("force attach the session (ignored)")
                         .short("a")
@@ -110,6 +120,11 @@ fn main() -> Result<(), MainError> {
                         .help("name of the project")
                         .value_name("PROJECT_NAME")
                         .index(1),
+                    Arg::with_name("project_file")
+                        .help("explicitly specify a project file to use (use - for stdin)")
+                        .short("f")
+                        .long("file")
+                        .value_name("PROJECT_FILE"),
                     Arg::with_name("args")
                         .help("arguments to be passed as variables to the yaml file")
                         .value_name("ARGUMENT")
@@ -129,6 +144,11 @@ fn main() -> Result<(), MainError> {
                         .help("name of the project")
                         .value_name("PROJECT_NAME")
                         .index(1),
+                    Arg::with_name("project_file")
+                        .help("explicitly specify a project file to use")
+                        .short("f")
+                        .long("file")
+                        .value_name("PROJECT_FILE"),
                     Arg::with_name("extension")
                         .help("the extension to use for the project file (yml|yaml|json)")
                         .short("e")
@@ -242,6 +262,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_lossy("project_name");
+    let project_file = matches.value_of_lossy("project_file");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let verbose = matches.is_present("verbose");
@@ -260,6 +281,7 @@ fn command_start(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::start_project(
         &config,
         project_name.as_deref(),
+        project_file.as_deref(),
         force_attach,
         false,
         verbose,
@@ -272,6 +294,7 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_lossy("project_name");
+    let project_file = matches.value_of_lossy("project_file");
     let attach = matches.is_present("attach");
     let no_attach = matches.is_present("no_attach");
     let verbose = matches.is_present("verbose");
@@ -289,6 +312,7 @@ fn command_debug(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::start_project(
         &config,
         project_name.as_deref(),
+        project_file.as_deref(),
         force_attach,
         true,
         verbose,
@@ -301,16 +325,23 @@ fn command_kill(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_lossy("project_name");
+    let project_file = matches.value_of_lossy("project_file");
     let args = matches.values_of_lossy("args").unwrap_or_default();
     let args: Vec<&str> = args.iter().map(AsRef::as_ref).collect();
 
-    actions::kill_project(&config, project_name.as_deref(), &args)
+    actions::kill_project(
+        &config,
+        project_name.as_deref(),
+        project_file.as_deref(),
+        &args,
+    )
 }
 
 fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let config = Config::from_args(APP_NAME, APP_AUTHOR, matches).check()?;
 
     let project_name = matches.value_of_lossy("project_name");
+    let project_file = matches.value_of_lossy("project_file");
     let extension = matches.value_of_lossy("extension");
     let editor = matches.value_of_lossy("editor").unwrap();
     let no_check = matches.is_present("no_check");
@@ -320,6 +351,7 @@ fn command_edit(matches: &ArgMatches) -> Result<(), Box<dyn Error>> {
     actions::edit_project(
         &config,
         project_name.as_deref(),
+        project_file.as_deref(),
         extension.as_deref(),
         &editor,
         no_check,

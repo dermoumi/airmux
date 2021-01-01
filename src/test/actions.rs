@@ -29,6 +29,7 @@ fn edit_project_fails_when_editor_is_empty() {
         edit_project(
             &test_config,
             Some(project_name),
+            None,
             Some("yml"),
             "",
             false,
@@ -56,6 +57,7 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
     let result = edit_project(
         &test_config,
         Some(project_name),
+        None,
         Some("yml"),
         TEST_EDITOR_BIN,
         true,
@@ -84,6 +86,7 @@ fn edit_project_succeeds_when_project_file_exists() {
     let result = edit_project(
         &test_config,
         Some(project_name),
+        None,
         Some("yml"),
         TEST_EDITOR_BIN,
         true,
@@ -109,6 +112,7 @@ fn edit_project_creates_sub_directories_as_needed() {
     edit_project(
         &test_config,
         Some(project_name),
+        None,
         Some("yml"),
         TEST_EDITOR_BIN,
         true,
@@ -137,6 +141,7 @@ fn edit_project_fails_when_project_path_is_directory() {
     let result = edit_project(
         &test_config,
         Some(project_name),
+        None,
         Some("yml"),
         TEST_EDITOR_BIN,
         false,
@@ -159,6 +164,7 @@ fn edit_project_project_name_cannot_be_empty() {
     let result = edit_project(
         &test_config,
         Some(project_name),
+        None,
         Some("yml"),
         TEST_EDITOR_BIN,
         false,
@@ -182,6 +188,7 @@ fn edit_project_fails_if_extension_is_not_supported() {
     let result = edit_project(
         &test_config,
         Some(project_name),
+        None,
         Some(unsupported_extension),
         TEST_EDITOR_BIN,
         false,
@@ -210,6 +217,7 @@ fn edit_project_creates_file_locally() {
 
     edit_project(
         &test_config,
+        None,
         None,
         Some(extension),
         TEST_EDITOR_BIN,
@@ -526,4 +534,80 @@ fn env_context_returns_none_if_out_of_bounds() {
     let result = project::env_context("0", &["var1", "var2", "var3"]).unwrap();
 
     assert_eq!(result, None);
+}
+
+#[test]
+fn get_filename_extracts_project_name_from_project_file() {
+    let test_config = make_config(None, None);
+    let test_project_file = "/some/path/myfile.yml";
+
+    let (project_name, project_path) =
+        project::get_filename(&test_config, None, Some(test_project_file)).unwrap();
+
+    assert_eq!(project_name, "myfile.yml");
+    assert_eq!(project_path, PathBuf::from("/some/path/myfile.yml"));
+}
+
+#[test]
+fn get_filename_returns_empty_filepath_if_project_file_is_single_dash() {
+    let test_config = make_config(None, None);
+    let test_project_name = "my_project";
+    let test_project_file = "-";
+
+    let (project_name, project_path) = project::get_filename(
+        &test_config,
+        Some(test_project_name),
+        Some(test_project_file),
+    )
+    .unwrap();
+
+    assert_eq!(project_name, "my_project");
+    assert_eq!(project_path, PathBuf::new());
+}
+
+#[test]
+fn get_filename_fails_if_project_file_is_single_dash_and_project_name_is_none() {
+    let test_config = make_config(None, None);
+    let test_project_file = "-";
+
+    let result = project::get_filename(&test_config, None, Some(test_project_file));
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result.err().unwrap().downcast_ref::<Error>().unwrap(),
+        Error::ProjectNameEmpty
+    ));
+}
+
+#[test]
+fn get_filename_fails_if_project_file_is_single_dash_and_project_name_is_empty() {
+    let test_config = make_config(None, None);
+    let test_project_name = "";
+    let test_project_file = "-";
+
+    let result = project::get_filename(
+        &test_config,
+        Some(test_project_name),
+        Some(test_project_file),
+    );
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result.err().unwrap().downcast_ref::<Error>().unwrap(),
+        Error::ProjectNameEmpty
+    ));
+}
+
+#[test]
+fn get_filename_fails_if_path_does_not_contain_a_filename() {
+    let test_config = make_config(None, None);
+    let test_project_file = "";
+
+    let result = project::get_filename(&test_config, None, Some(test_project_file));
+
+    assert!(result.is_err());
+    assert!(matches!(
+        result.err().unwrap().downcast_ref::<Error>().unwrap(),
+        Error::CannotExtractProjectName { project_file } if project_file == &PathBuf::from(test_project_file)
+    ));
 }
