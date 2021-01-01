@@ -85,7 +85,7 @@ impl Window {
             Empty,
             List(Vec<Pane>),
             Single(Pane),
-        };
+        }
 
         let pane_list: PaneList = de::Deserialize::deserialize(deserializer)?;
 
