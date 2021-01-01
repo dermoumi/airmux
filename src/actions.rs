@@ -48,6 +48,7 @@ pub enum Error {
     CannotEditStdinProject,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn start_project(
     config: &Config,
     project_name: Option<&str>,
