@@ -382,11 +382,11 @@ mod project {
         P: AsRef<Path>,
     {
         let project_yaml = if project_file.as_ref() == PathBuf::new() {
-            fs::read_to_string(project_file)?
-        } else {
             let mut buffer = String::new();
             io::stdin().read_to_string(&mut buffer)?;
             buffer
+        } else {
+            fs::read_to_string(project_file)?
         };
 
         let project_yaml = env_with_context(&project_yaml, |s| env_context(s, args))
