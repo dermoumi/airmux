@@ -16,6 +16,7 @@ pub struct Pane {
     pub split: Option<PaneSplit>,
     pub split_from: Option<usize>,
     pub split_size: Option<String>,
+    pub split_before: bool,
     pub clear: bool,
     pub on_create: Vec<String>,
     pub post_create: Vec<String>,
@@ -144,6 +145,8 @@ impl<'de> Visitor<'de> for PaneVisitor {
             #[serde(default, deserialize_with = "Pane::de_split_size")]
             split_size: Option<String>,
             #[serde(default)]
+            split_before: bool,
+            #[serde(default)]
             clear: bool,
             #[serde(default, deserialize_with = "de_command_list")]
             on_create: Vec<String>,
@@ -168,6 +171,8 @@ impl<'de> Visitor<'de> for PaneVisitor {
             split_from: Option<usize>,
             #[serde(default, deserialize_with = "Pane::de_split_size")]
             split_size: Option<String>,
+            #[serde(default)]
+            split_before: bool,
             #[serde(default)]
             clear: bool,
             #[serde(default, deserialize_with = "de_command_list")]
@@ -226,6 +231,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                             pane.split = def.split;
                             pane.split_from = def.split_from;
                             pane.split_size = def.split_size;
+                            pane.split_before = def.split_before;
                             pane.clear = def.clear;
                             pane.on_create = def.on_create;
                             pane.post_create = def.post_create;
@@ -238,6 +244,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                             pane.split = def.split;
                             pane.split_from = def.split_from;
                             pane.split_size = def.split_size;
+                            pane.split_before = def.split_before;
                             pane.clear = def.clear;
                             pane.on_create = def.on_create;
                             pane.post_create = def.post_create;
@@ -253,6 +260,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         "split" => pane.split = None,
                         "split_from" => pane.split_from = None,
                         "split_size" => pane.split_size = None,
+                        "split_before" => pane.split_before = false,
                         "clear" => pane.clear = false,
                         "on_create" => pane.on_create = vec![],
                         "post_create" => pane.post_create = vec![],
@@ -270,6 +278,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         }
                     },
                     PaneOption::Bool(val) => match key.as_str() {
+                        "split_before" => pane.split_before = val,
                         "clear" => pane.clear = val,
                         _ => {
                             return Err(de::Error::custom(format!(
@@ -285,6 +294,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         }
                         "split_from" => pane.split_from = Some(val),
                         "split_size" => pane.split_size = Some(val.to_string()),
+                        "split_before" => pane.split_before = val != 0,
                         "clear" => pane.clear = val != 0,
                         _ => {
                             return Err(de::Error::custom(format!(
@@ -362,6 +372,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         pane.split = def.split;
                         pane.split_from = def.split_from;
                         pane.split_size = def.split_size;
+                        pane.split_before = def.split_before;
                         pane.clear = def.clear;
                         pane.on_create = def.on_create;
                         pane.post_create = def.post_create;
@@ -381,6 +392,7 @@ impl<'de> Visitor<'de> for PaneVisitor {
                         pane.split = def.split;
                         pane.split_from = def.split_from;
                         pane.split_size = def.split_size;
+                        pane.split_before = def.split_before;
                         pane.clear = def.clear;
                         pane.on_create = def.on_create;
                         pane.post_create = def.post_create;

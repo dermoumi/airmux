@@ -752,6 +752,11 @@ mod source {
                         },
                     ];
 
+                    // Split before
+                    if pane.split_before {
+                        split_command.push("-b");
+                    }
+
                     // Working directory
                     let mut found_working_dir = true;
                     let mut working_dir = String::new();
