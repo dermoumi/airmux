@@ -50,7 +50,7 @@ fn edit_project_succeeds_when_project_file_does_not_exist() {
     let test_config = make_config(None, Some(temp_dir));
     let project_name = "project";
     let project_path = test_config
-        .get_projects_dir(&project_name)
+        .get_projects_dir(project_name)
         .unwrap()
         .with_extension("yml");
 
@@ -77,9 +77,9 @@ fn edit_project_succeeds_when_project_file_exists() {
 
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
-    let project_path = projects_dir.join(&project_name).with_extension("yml");
+    let project_path = projects_dir.join(project_name).with_extension("yml");
     mkdirp(projects_dir).unwrap();
-    edit::create_project(&project_name, &project_path, "yml", None).unwrap();
+    edit::create_project(project_name, &project_path, "yml", None).unwrap();
     assert!(project_path.is_file());
 
     // Run edit_project
@@ -105,7 +105,7 @@ fn edit_project_creates_sub_directories_as_needed() {
     let project_name = "subdir1/subdir2/project";
     let subdir_path = test_config.get_projects_dir("subdir1/subdir2").unwrap();
     let project_path = test_config
-        .get_projects_dir(&project_name)
+        .get_projects_dir(project_name)
         .unwrap()
         .with_extension("yml");
 
@@ -131,7 +131,7 @@ fn edit_project_fails_when_project_path_is_directory() {
     let test_config = make_config(None, Some(temp_dir));
     let project_name = "project";
     let project_path = test_config
-        .get_projects_dir(&project_name)
+        .get_projects_dir(project_name)
         .unwrap()
         .with_extension("yml");
 
@@ -237,9 +237,9 @@ fn remove_project_removes_existing_project() {
 
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
-    let project_path = projects_dir.join(&project_name).with_extension("yml");
+    let project_path = projects_dir.join(project_name).with_extension("yml");
     mkdirp(projects_dir).unwrap();
-    edit::create_project(&project_name, &project_path, "yml", None).unwrap();
+    edit::create_project(project_name, &project_path, "yml", None).unwrap();
     assert!(project_path.is_file());
 
     let result = remove_project(&test_config, Some(project_name), true);
@@ -255,14 +255,14 @@ fn remove_project_removes_parent_subdirectories_if_empty() {
     let project_name = "subdir1/subdir2/project";
 
     // Make sure the project's parent directory exists
-    let namespace = utils::get_project_namespace(&project_name).unwrap();
+    let namespace = utils::get_project_namespace(project_name).unwrap();
     let data_dir = test_config.get_projects_dir("").unwrap();
-    mkdirp(data_dir.join(&namespace)).unwrap();
+    mkdirp(data_dir.join(namespace)).unwrap();
 
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
-    let project_path = projects_dir.join(&project_name).with_extension("yml");
-    edit::create_project(&project_name, &project_path, "yml", None).unwrap();
+    let project_path = projects_dir.join(project_name).with_extension("yml");
+    edit::create_project(project_name, &project_path, "yml", None).unwrap();
     assert!(project_path.is_file());
 
     let result = remove_project(&test_config, Some(project_name), true);
@@ -281,19 +281,19 @@ fn remove_project_does_not_remove_parent_subdirs_if_not_empty() {
     let project2_name = "subdir1/project2";
 
     // Make sure the project's parent directory exists
-    let namespace = utils::get_project_namespace(&project1_name).unwrap();
+    let namespace = utils::get_project_namespace(project1_name).unwrap();
     let data_dir = test_config.get_projects_dir("").unwrap();
-    mkdirp(data_dir.join(&namespace)).unwrap();
+    mkdirp(data_dir.join(namespace)).unwrap();
 
     // Make sure the file exists
     let projects_dir = test_config.get_projects_dir("").unwrap();
 
-    let project1_path = projects_dir.join(&project1_name).with_extension("yml");
-    edit::create_project(&project1_name, &project1_path, "yml", None).unwrap();
+    let project1_path = projects_dir.join(project1_name).with_extension("yml");
+    edit::create_project(project1_name, &project1_path, "yml", None).unwrap();
     assert!(project1_path.is_file());
 
-    let project2_path = projects_dir.join(&project2_name).with_extension("yml");
-    edit::create_project(&project2_name, &project2_path, "yml", None).unwrap();
+    let project2_path = projects_dir.join(project2_name).with_extension("yml");
+    edit::create_project(project2_name, &project2_path, "yml", None).unwrap();
     assert!(project2_path.is_file());
 
     let result = remove_project(&test_config, Some(project1_name), true);

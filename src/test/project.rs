@@ -58,11 +58,11 @@ fn project_prepare_replaces_attach_when_force_attach_is_set() {
         ..Project::default()
     };
     assert_eq!(project.working_dir, Some(PathBuf::from("/")));
-    assert_eq!(project.attach, false);
+    assert!(!project.attach);
 
     let project = project.prepare(&config, "project", Some(true));
     assert_eq!(project.working_dir, Some(PathBuf::from("/")));
-    assert_eq!(project.attach, true);
+    assert!(project.attach);
 
     // --
 
@@ -72,11 +72,11 @@ fn project_prepare_replaces_attach_when_force_attach_is_set() {
         ..Project::default()
     };
     assert_eq!(project.working_dir, Some(PathBuf::from("/")));
-    assert_eq!(project.attach, true);
+    assert!(project.attach);
 
     let project = project.prepare(&config, "project", Some(false));
     assert_eq!(project.working_dir, Some(PathBuf::from("/")));
-    assert_eq!(project.attach, false);
+    assert!(!project.attach);
 }
 
 #[test]
@@ -466,14 +466,14 @@ fn project_deserializer_attach_value_is_set_correctly_when_attach_is_set() {
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(project.attach, true);
+    assert!(project.attach);
 
     let yaml = r#"
         attach: false
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(project.attach, false);
+    assert!(!project.attach);
 }
 
 #[test]
@@ -483,14 +483,14 @@ fn project_deserializer_attach_value_is_set_correctly_when_detached_is_set() {
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(project.attach, false);
+    assert!(!project.attach);
 
     let yaml = r#"
         detached: false
     "#;
 
     let project: Project = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(project.attach, true);
+    assert!(project.attach);
 }
 
 #[test]

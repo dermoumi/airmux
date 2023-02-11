@@ -394,7 +394,7 @@ mod project {
             .to_string();
 
         Ok(serde_yaml::from_str::<Project>(&project_yaml)?.prepare(
-            &config,
+            config,
             project_name,
             force_attach,
         ))
@@ -404,12 +404,12 @@ mod project {
         // Check if it's a number and that it's > 0 and <= args.len()
         if let Ok(arg_index) = s.parse::<usize>() {
             if arg_index > 0 && arg_index <= args.len() {
-                return Ok(Some(args[arg_index - 1].replace("\\", "\\\\")));
+                return Ok(Some(args[arg_index - 1].replace('\\', "\\\\")));
             }
         }
 
         // Fallback to env vars
-        Ok(env::var(s).ok().map(|s| s.replace("\\", "\\\\")))
+        Ok(env::var(s).ok().map(|s| s.replace('\\', "\\\\")))
     }
 
     pub fn test_for_file_extensions<P>(path: P) -> Result<PathBuf, Box<dyn error::Error>>
@@ -579,9 +579,9 @@ mod source {
             if !project.on_exit.is_empty() || !project.on_stop.is_empty() {
                 let command_list = project
                     .on_exit
-                    .to_owned()
-                    .into_iter()
-                    .chain(project.on_stop.to_owned().into_iter())
+                    .iter()
+                    .cloned()
+                    .chain(project.on_stop.iter().cloned())
                     .chain(iter::once(project.tmux(&[
                         "set-hook",
                         "-gu",
@@ -782,7 +782,7 @@ mod source {
                         match &pane.split_from {
                             None => target_window,
                             Some(split_from) => {
-                                split_from_target = format!("#{{__AIRMUX_PANE_{}}}", split_from);
+                                split_from_target = format!("#{{__AIRMUX_PANE_{split_from}}}");
                                 &split_from_target
                             }
                         },
@@ -1051,7 +1051,7 @@ mod edit {
         let project_name = strip_extension_from_project_name(project_name);
 
         let project_path = project_path.as_ref();
-        let mut file = fs::File::create(&project_path)?;
+        let mut file = fs::File::create(project_path)?;
 
         let content = match content {
             Some(content) => content.to_string(),
@@ -1131,7 +1131,7 @@ mod edit {
 
         // If file does not exist or we have updated content
         if !project_file.exists() || content.is_some() {
-            edit::create_project(&project_name, &project_file, extension, content)?;
+            edit::create_project(project_name, &project_file, extension, content)?;
         }
 
         // Open it with editor

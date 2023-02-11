@@ -48,7 +48,7 @@ pub fn parse_command(
 ) -> Result<(String, Vec<String>), Box<dyn error::Error>> {
     ensure!(!command.is_empty(), EmptyCommand {});
 
-    let args_iter = args.to_owned().into_iter().map(String::from);
+    let args_iter = args.iter().copied().map(String::from);
     let mut command_parts = split(command)?.into_iter().chain(args_iter);
 
     let new_command = command_parts.next().unwrap();
@@ -89,8 +89,12 @@ pub fn tmux_quote(part: &str) -> String {
 }
 
 pub fn tmux_join(parts: &[&str]) -> String {
-    let parts: Vec<String> = parts.to_owned().into_iter().map(tmux_quote).collect();
-    parts.join(" ")
+    parts
+        .iter()
+        .copied()
+        .map(tmux_quote)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]

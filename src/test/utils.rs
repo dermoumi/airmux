@@ -5,7 +5,7 @@ fn parses_empty_namespace() {
     let expected_result = PathBuf::new();
     let project_name = "project";
 
-    let result = get_project_namespace(&project_name).unwrap();
+    let result = get_project_namespace(project_name).unwrap();
     assert_eq!(result, expected_result);
 }
 
@@ -14,7 +14,7 @@ fn parses_namespace() {
     let expected_result = PathBuf::from("namespace");
     let project_name = "namespace/project";
 
-    let result = get_project_namespace(&project_name).unwrap();
+    let result = get_project_namespace(project_name).unwrap();
     assert_eq!(result, expected_result);
 }
 
@@ -54,7 +54,7 @@ fn fails_when_project_name_has_a_trailing_slash() {
 fn fails_when_project_name_is_an_absolute_path() {
     let name = "/project";
 
-    let result = get_project_namespace(&name);
+    let result = get_project_namespace(name);
     assert!(result.is_err());
     assert!(matches!(
         result.err().unwrap().downcast_ref::<Error>().unwrap(),

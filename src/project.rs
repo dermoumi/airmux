@@ -69,26 +69,24 @@ impl Project {
         // Make sure start up window exists
         match &self.startup_window {
             StartupWindow::Index(index) => {
-                if *index >= self.window_base_index + self.windows.len()
-                    || *index < self.window_base_index
-                {
+                let has_that_window = *index < self.window_base_index + self.windows.len()
+                    && *index >= self.window_base_index;
+
+                if !has_that_window {
                     return Err(
                         format!("startup_window: there is no window with index {}", index).into(),
                     );
                 }
             }
             StartupWindow::Name(name) => {
-                if self
-                    .windows
-                    .iter()
-                    .find(|window| match &window.name {
-                        Some(window_name) => window_name == name,
-                        _ => false,
-                    })
-                    .is_none()
-                {
+                let has_that_window = self.windows.iter().any(|window| match &window.name {
+                    Some(window_name) => window_name == name,
+                    _ => false,
+                });
+
+                if !has_that_window {
                     return Err(
-                        format!("startup_window: there is no window with name {:?}", name).into(),
+                        format!("startup_window: there is no window with name {name:?}").into(),
                     );
                 }
             }
@@ -99,8 +97,7 @@ impl Project {
         if let Some(path) = &self.working_dir {
             if !path.is_dir() {
                 return Err(format!(
-                    "project working_dir {:?} is not a directory or does not exist",
-                    path
+                    "project working_dir {path:?} is not a directory or does not exist"
                 )
                 .into());
             }
@@ -140,7 +137,7 @@ impl Project {
         full_args.extend_from_slice(args);
 
         // Use utiliy to split command and append args to the split arguments
-        parse_command(&command, &full_args)
+        parse_command(command, &full_args)
     }
 
     // Sanitizes tmux_command for use in the template file

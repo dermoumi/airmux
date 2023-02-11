@@ -52,7 +52,7 @@ impl Config {
             let path = PathBuf::from(config_dir);
             ensure!(!path.is_file(), ConfigDirIsNotADirectory { path });
 
-            mkdirp(&config_dir)?;
+            mkdirp(config_dir)?;
         };
 
         Ok(self)
@@ -62,22 +62,19 @@ impl Config {
     where
         P: AsRef<Path>,
     {
-        let path;
-        if let Some(dir) = &self.config_dir {
-            path = PathBuf::from(dir);
-        } else {
-            path = get_app_root(
+        let path = match &self.config_dir {
+            Some(dir) => PathBuf::from(dir),
+            _ => get_app_root(
                 AppDataType::UserConfig,
                 &AppInfo {
-                    name: &self.app_name,
-                    author: &self.app_author,
+                    name: self.app_name,
+                    author: self.app_author,
                 },
-            )?;
-        };
+            )?,
+        }
+        .join(&sub_path);
 
-        let path = path.join(&sub_path);
         mkdirp(&path)?;
-
         Ok(path)
     }
 

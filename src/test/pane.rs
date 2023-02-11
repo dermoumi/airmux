@@ -92,6 +92,7 @@ fn pane_1st_form_deserializes_correctly() {
         split: v
         split_from: 1
         split_size: 42%
+        split_before: true
         clear: true
         on_create: echo on_create
         post_create: echo post_create
@@ -108,6 +109,7 @@ fn pane_1st_form_deserializes_correctly() {
             split: Some(PaneSplit::Vertical),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -171,6 +173,7 @@ fn pane_1st_form_deserializes_correctly_with_key_name() {
         split: v
         split_from: 1
         split_size: 42%
+        split_before: true
         clear: true
         on_create: echo on_create
         post_create: echo post_create
@@ -187,6 +190,7 @@ fn pane_1st_form_deserializes_correctly_with_key_name() {
             split: Some(PaneSplit::Vertical),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -204,6 +208,7 @@ fn pane_1st_form_deserializes_correctly_with_null_key_name() {
         split: h
         split_from: 1
         split_size: 42%
+        split_before: true
         clear: true
         on_create: echo on_create
         post_create: echo post_create
@@ -220,6 +225,7 @@ fn pane_1st_form_deserializes_correctly_with_null_key_name() {
             split: Some(PaneSplit::Horizontal),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -420,6 +426,7 @@ fn pane_2nd_form_deserializes_correctly_with_name() {
             split: v
             split_from: 1
             split_size: 42%
+            split_before: true
             clear: true
             on_create: echo on_create
             post_create: echo post_create
@@ -436,6 +443,7 @@ fn pane_2nd_form_deserializes_correctly_with_name() {
             split: Some(PaneSplit::Vertical),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -453,6 +461,7 @@ fn pane_2nd_form_deserializes_correctly_with_null_name() {
             split: v
             split_from: 1
             split_size: 42%
+            split_before: true
             clear: true
             on_create: echo on_create
             post_create: echo post_create
@@ -469,6 +478,7 @@ fn pane_2nd_form_deserializes_correctly_with_null_name() {
             split: Some(PaneSplit::Vertical),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -729,6 +739,7 @@ fn pane_3rd_form_deserializes_correctly_with_name() {
             split: v
             split_from: 1
             split_size: 42%
+            split_before: true
             clear: true
             on_create: echo on_create
             post_create: echo post_create
@@ -745,6 +756,7 @@ fn pane_3rd_form_deserializes_correctly_with_name() {
             split: Some(PaneSplit::Vertical),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -763,6 +775,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_name() {
             split: h
             split_from: 1
             split_size: 42%
+            split_before: true
             clear: true
             on_create: echo on_create
             post_create: echo post_create
@@ -779,6 +792,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_name() {
             split: Some(PaneSplit::Horizontal),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -797,6 +811,7 @@ fn pane_3rd_form_deserializes_correctly_with_id() {
             split: v
             split_from: 1
             split_size: 42%
+            split_before: true
             clear: true
             on_create: echo on_create
             post_create: echo post_create
@@ -813,6 +828,7 @@ fn pane_3rd_form_deserializes_correctly_with_id() {
             split: Some(PaneSplit::Vertical),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],
@@ -831,6 +847,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
             split: h
             split_from: 1
             split_size: 42%
+            split_before: true
             clear: true
             on_create: echo on_create
             post_create: echo post_create
@@ -847,6 +864,7 @@ fn pane_3rd_form_deserializes_correctly_with_null_id() {
             split: Some(PaneSplit::Horizontal),
             split_from: Some(1),
             split_size: Some(String::from("42%")),
+            split_before: true,
             clear: true,
             on_create: vec![String::from("echo on_create")],
             post_create: vec![String::from("echo post_create")],

@@ -22,9 +22,9 @@ where
 
 pub fn process_command(command: String) -> String {
     command
-        .replace("#", "##")
-        .replace("\n", " ")
-        .replace("\r", "")
+        .replace('#', "##")
+        .replace('\n', " ")
+        .replace('\r', "")
 }
 
 pub fn process_command_list(commands: Vec<String>) -> Vec<String> {
